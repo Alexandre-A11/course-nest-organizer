@@ -230,6 +230,8 @@ function Home() {
         onSaved={() => { load(); }}
       />
 
+      <ManageCategoriesDialog open={manageCats} onOpenChange={setManageCats} />
+
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
