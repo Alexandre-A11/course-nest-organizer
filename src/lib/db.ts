@@ -29,6 +29,11 @@ export interface Course {
   // For "memory" sources we store the original folder name for re-matching
   rootName?: string;
   color: string; // accent color seed
+  // Optional category id (see src/lib/categories.ts)
+  category?: string;
+  // Optional banner image stored as a data URL (kept inline so it survives
+  // export/sync without separate blob storage).
+  banner?: string;
 }
 
 interface Schema extends DBSchema {
