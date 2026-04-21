@@ -52,9 +52,16 @@ export async function scanDirectory(
 }
 
 export async function getFileFromCourse(
-  rootHandle: FileSystemDirectoryHandle,
+  rootHandle: FileSystemDirectoryHandle | undefined,
   relPath: string,
+  memoryFiles?: Map<string, File>,
 ): Promise<File> {
+  if (memoryFiles) {
+    const f = memoryFiles.get(relPath);
+    if (!f) throw new Error("Arquivo não disponível na sessão atual");
+    return f;
+  }
+  if (!rootHandle) throw new Error("Pasta do curso não está acessível");
   const parts = relPath.split("/");
   let dir: FileSystemDirectoryHandle = rootHandle;
   for (let i = 0; i < parts.length - 1; i++) {
