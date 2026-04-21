@@ -118,9 +118,27 @@ function Home() {
                     <Rows3 className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
                 </ToggleGroup>
+                <Button variant="outline" size="sm" onClick={() => setManageCats(true)} className="h-9 gap-1.5 rounded-xl" title="Gerenciar categorias">
+                  <Settings2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Categorias</span>
+                </Button>
                 <AddCourseDialog onAdded={load} />
               </div>
             </div>
+
+            {missingCourses.length > 0 && (
+              <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="flex-1">
+                  <p className="font-medium text-foreground">
+                    {missingCourses.length} curso{missingCourses.length !== 1 ? "s precisam" : " precisa"} que você reabra a pasta
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {missingCourses.map((c) => c.name).join(", ")}. Clique no curso para reselecionar a pasta, ou edite para ativar o modo offline.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {visibleCategories.length > 0 && (
               <div className="mb-5 flex items-center gap-1.5 overflow-x-auto pb-1">
