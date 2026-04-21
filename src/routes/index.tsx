@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { AddCourseDialog } from "@/components/AddCourseDialog";
-import { CourseCard } from "@/components/CourseCard";
+import { CourseCard, type CourseViewMode } from "@/components/CourseCard";
 import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
 import { isFsAccessSupported } from "@/lib/fs";
-import { GraduationCap, Sparkles, ShieldCheck, Cpu } from "lucide-react";
+import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3 } from "lucide-react";
 import { toast } from "sonner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { usePref } from "@/lib/prefs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -27,6 +29,7 @@ function Home() {
   const [filesByCourse, setFilesByCourse] = useState<Record<string, CourseFileMeta[]>>({});
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<Course | null>(null);
+  const [view, setView] = usePref<CourseViewMode>("home.view", "grid");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,7 +71,25 @@ function Home() {
                   {courses.length} curso{courses.length !== 1 ? "s" : ""} na sua biblioteca local
                 </p>
               </div>
-              <AddCourseDialog onAdded={load} />
+              <div className="flex items-center gap-2">
+                <ToggleGroup
+                  type="single"
+                  value={view}
+                  onValueChange={(v) => v && setView(v as CourseViewMode)}
+                  className="rounded-xl border border-border bg-card p-0.5"
+                >
+                  <ToggleGroupItem value="grid" size="sm" className="h-8 w-8 rounded-lg p-0" title="Grade">
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="list" size="sm" className="h-8 w-8 rounded-lg p-0" title="Lista">
+                    <List className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="compact" size="sm" className="h-8 w-8 rounded-lg p-0" title="Compacto">
+                    <Rows3 className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <AddCourseDialog onAdded={load} />
+              </div>
             </div>
 
             {loading ? (
@@ -78,13 +99,22 @@ function Home() {
                 ))}
               </div>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                className={
+                  view === "grid"
+                    ? "grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                    : view === "compact"
+                      ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                      : "flex flex-col gap-3"
+                }
+              >
                 {courses.map((c) => (
                   <CourseCard
                     key={c.id}
                     course={c}
                     files={filesByCourse[c.id] ?? []}
                     onDelete={() => setConfirmDelete(c)}
+                    view={view}
                   />
                 ))}
               </div>

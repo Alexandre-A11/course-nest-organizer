@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { GraduationCap } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function AppHeader() {
   return (
@@ -27,6 +28,7 @@ export function AppHeader() {
           >
             Meus cursos
           </Link>
+          <ThemeToggle />
         </nav>
       </div>
     </header>
