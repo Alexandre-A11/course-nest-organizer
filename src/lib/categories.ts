@@ -116,13 +116,8 @@ export function subscribeCategories(cb: () => void): () => void {
   return () => listeners.delete(cb);
 }
 
-/** @deprecated use getAllCategories() */
-export const CATEGORIES = new Proxy([] as Category[], {
-  get(_t, prop) {
-    const arr = getAllCategories();
-    return Reflect.get(arr, prop);
-  },
-});
+/** Snapshot of all categories (built-in + custom). For dynamic re-rendering use useCategories(). */
+export const CATEGORIES = getAllCategories();
 
 export function getCategory(id?: string | null): Category | undefined {
   if (!id) return undefined;
