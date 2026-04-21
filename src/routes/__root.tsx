@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 function NotFoundComponent() {
   return (
@@ -56,6 +57,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k=localStorage.getItem('course-vault.theme');var d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var t=k||(d?'dark':'cloud');document.documentElement.dataset.theme=t;if(t==='dark'||t==='mocha')document.documentElement.classList.add('dark');}catch(e){}})();`,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -67,9 +73,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <>
+    <ThemeProvider>
       <Outlet />
       <Toaster position="top-right" />
-    </>
+    </ThemeProvider>
   );
 }
