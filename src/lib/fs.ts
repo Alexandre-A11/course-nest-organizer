@@ -27,8 +27,9 @@ export async function scanDirectory(
   prefix = "",
 ): Promise<ScannedFile[]> {
   const out: ScannedFile[] = [];
-  // @ts-expect-error - values() exists on FileSystemDirectoryHandle
-  for await (const entry of handle.values()) {
+  // values() is part of the spec but not in lib.dom yet in some setups
+  const iter = (handle as unknown as { values: () => AsyncIterable<FileSystemHandle> }).values();
+  for await (const entry of iter) {
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.kind === "directory") {
       const sub = await scanDirectory(entry as FileSystemDirectoryHandle, path);
@@ -67,13 +68,14 @@ export async function ensurePermission(
   handle: FileSystemDirectoryHandle,
   mode: "read" | "readwrite" = "read",
 ): Promise<boolean> {
-  // @ts-expect-error - non-standard but widely supported
+  const h = handle as unknown as {
+    queryPermission: (o: { mode: string }) => Promise<PermissionState>;
+    requestPermission: (o: { mode: string }) => Promise<PermissionState>;
+  };
   const opts = { mode };
-  // @ts-expect-error
-  const current = await handle.queryPermission(opts);
+  const current = await h.queryPermission(opts);
   if (current === "granted") return true;
-  // @ts-expect-error
-  const req = await handle.requestPermission(opts);
+  const req = await h.requestPermission(opts);
   return req === "granted";
 }
 
