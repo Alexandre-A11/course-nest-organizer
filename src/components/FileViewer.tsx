@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { upsertFile } from "@/lib/db";
 import { getFileFromCourse, formatBytes } from "@/lib/fs";
+import { getCourseFiles } from "@/lib/sessionFiles";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, FileImage, File as FileIcon } from "lucide-react";
@@ -32,7 +33,8 @@ export function FileViewer({ course, file, onUpdated }: Props) {
 
     (async () => {
       try {
-        const blob = await getFileFromCourse(course.handle, file.path);
+        const memFiles = course.source === "memory" ? getCourseFiles(course.id) : undefined;
+        const blob = await getFileFromCourse(course.handle, file.path, memFiles);
         if (!active) return;
         blobRef.current = blob;
         objectUrl = URL.createObjectURL(blob);

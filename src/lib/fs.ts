@@ -52,9 +52,16 @@ export async function scanDirectory(
 }
 
 export async function getFileFromCourse(
-  rootHandle: FileSystemDirectoryHandle,
+  rootHandle: FileSystemDirectoryHandle | undefined,
   relPath: string,
+  memoryFiles?: Map<string, File>,
 ): Promise<File> {
+  if (memoryFiles) {
+    const f = memoryFiles.get(relPath);
+    if (!f) throw new Error("Arquivo não disponível na sessão atual");
+    return f;
+  }
+  if (!rootHandle) throw new Error("Pasta do curso não está acessível");
   const parts = relPath.split("/");
   let dir: FileSystemDirectoryHandle = rootHandle;
   for (let i = 0; i < parts.length - 1; i++) {
@@ -81,6 +88,50 @@ export async function ensurePermission(
 
 export function isFsAccessSupported(): boolean {
   return typeof window !== "undefined" && "showDirectoryPicker" in window;
+}
+
+export function getBrowserInfo(): { name: string; supportsHandle: boolean; isLinux: boolean } {
+  if (typeof navigator === "undefined") {
+    return { name: "unknown", supportsHandle: false, isLinux: false };
+  }
+  const ua = navigator.userAgent;
+  const isLinux = /Linux/i.test(ua) && !/Android/i.test(ua);
+  let name = "unknown";
+  if (/Firefox\//.test(ua)) name = "Firefox";
+  else if (/Edg\//.test(ua)) name = "Edge";
+  else if (/Chrome\//.test(ua)) name = "Chrome";
+  else if (/Safari\//.test(ua)) name = "Safari";
+  return { name, supportsHandle: isFsAccessSupported(), isLinux };
+}
+
+/**
+ * Scan a flat list of File objects (from <input webkitdirectory>) and turn
+ * them into ScannedFile entries. The webkitRelativePath includes the root
+ * folder name as the first segment — we strip it.
+ */
+export function scanFileList(fileList: FileList | File[]): { files: ScannedFile[]; rootName: string; fileMap: Map<string, File> } {
+  const arr = Array.from(fileList);
+  const fileMap = new Map<string, File>();
+  let rootName = "";
+  const files: ScannedFile[] = [];
+
+  for (const f of arr) {
+    // webkitRelativePath: "CourseName/sub/file.mp4"
+    const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    const parts = rel.split("/");
+    if (!rootName && parts.length > 1) rootName = parts[0];
+    const path = parts.length > 1 ? parts.slice(1).join("/") : f.name;
+    fileMap.set(path, f);
+    files.push({
+      path,
+      name: f.name,
+      size: f.size,
+      kind: getKind(f.name),
+    });
+  }
+
+  files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
+  return { files, rootName: rootName || "Curso", fileMap };
 }
 
 export function mergeScanWithMeta(

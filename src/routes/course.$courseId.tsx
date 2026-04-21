@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { FileTree } from "@/components/FileTree";
 import { FileViewer } from "@/components/FileViewer";
@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getCourse, listFiles, upsertFiles, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
-import { ensurePermission, scanDirectory, mergeScanWithMeta } from "@/lib/fs";
-import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
+import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
+import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
+import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/course/$courseId")({
@@ -28,10 +29,11 @@ function CoursePage() {
   const [files, setFiles] = useState<CourseFileMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [permError, setPermError] = useState(false);
+  const [needsAccess, setNeedsAccess] = useState<null | "permission" | "memory">(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unwatched" | FileKind>("all");
   const [rescanning, setRescanning] = useState(false);
+  const fallbackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -41,11 +43,20 @@ function CoursePage() {
         return;
       }
       setCourse(c);
-      const granted = await ensurePermission(c.handle);
-      if (!granted) {
-        setPermError(true);
-        setLoading(false);
-        return;
+      if (c.source === "memory") {
+        // Memory courses require re-picking the folder each session
+        if (!hasCourseFiles(courseId)) {
+          setNeedsAccess("memory");
+          setLoading(false);
+          return;
+        }
+      } else if (c.handle) {
+        const granted = await ensurePermission(c.handle);
+        if (!granted) {
+          setNeedsAccess("permission");
+          setLoading(false);
+          return;
+        }
       }
       const fs = await listFiles(courseId);
       setFiles(fs);
@@ -54,10 +65,10 @@ function CoursePage() {
   }, [courseId, navigate]);
 
   const requestPermission = async () => {
-    if (!course) return;
+    if (!course || !course.handle) return;
     const granted = await ensurePermission(course.handle);
     if (granted) {
-      setPermError(false);
+      setNeedsAccess(null);
       setLoading(true);
       const fs = await listFiles(courseId);
       setFiles(fs);
@@ -67,18 +78,49 @@ function CoursePage() {
     }
   };
 
+  const handleReattachFolder = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const list = e.target.files;
+    if (!list || list.length === 0 || !course) return;
+    const { fileMap, rootName } = scanFileList(list);
+    if (course.rootName && rootName !== course.rootName) {
+      toast.warning(`Pasta esperada: "${course.rootName}". Você selecionou "${rootName}". Continuando mesmo assim.`);
+    }
+    setCourseFiles(courseId, fileMap);
+    setNeedsAccess(null);
+    (async () => {
+      setLoading(true);
+      const fs = await listFiles(courseId);
+      setFiles(fs);
+      setLoading(false);
+    })();
+  };
+
   const rescan = async () => {
     if (!course) return;
     setRescanning(true);
     try {
-      const granted = await ensurePermission(course.handle);
-      if (!granted) { setPermError(true); return; }
-      const scanned = await scanDirectory(course.handle);
-      const existing = await listFiles(courseId);
-      const merged = mergeScanWithMeta(courseId, scanned, existing);
-      await upsertFiles(merged);
-      setFiles(merged);
-      toast.success(`${merged.length} arquivos sincronizados`);
+      if (course.source === "handle" && course.handle) {
+        const granted = await ensurePermission(course.handle);
+        if (!granted) { setNeedsAccess("permission"); return; }
+        const scanned = await scanDirectory(course.handle);
+        const existing = await listFiles(courseId);
+        const merged = mergeScanWithMeta(courseId, scanned, existing);
+        await upsertFiles(merged);
+        setFiles(merged);
+        toast.success(`${merged.length} arquivos sincronizados`);
+      } else {
+        // Memory mode: rebuild from session cache
+        const memFiles = (await import("@/lib/sessionFiles")).getCourseFiles(courseId);
+        if (!memFiles) { setNeedsAccess("memory"); return; }
+        const scanned = Array.from(memFiles.entries()).map(([path, f]) => ({
+          path, name: f.name, size: f.size, kind: getKind(f.name),
+        }));
+        const existing = await listFiles(courseId);
+        const merged = mergeScanWithMeta(courseId, scanned, existing);
+        await upsertFiles(merged);
+        setFiles(merged);
+        toast.success(`${merged.length} arquivos sincronizados`);
+      }
     } finally {
       setRescanning(false);
     }
@@ -121,23 +163,51 @@ function CoursePage() {
     );
   }
 
-  if (permError && course) {
+  if (needsAccess && course) {
+    const isMemory = needsAccess === "memory";
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
         <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6">
           <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-              <AlertTriangle className="h-6 w-6" />
+              {isMemory ? <FolderOpen className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
             </div>
-            <h2 className="font-display text-xl font-semibold text-foreground">Permissão necessária</h2>
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              {isMemory ? "Reabrir pasta do curso" : "Permissão necessária"}
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Por segurança, o navegador precisa que você reautorize o acesso à pasta de
-              <strong className="text-foreground"> {course.name}</strong> a cada sessão.
+              {isMemory ? (
+                <>
+                  Seu navegador precisa que você reselecione a pasta
+                  <strong className="text-foreground"> {course.rootName ?? course.name}</strong> a cada sessão.
+                  Seu progresso e comentários estão salvos.
+                </>
+              ) : (
+                <>
+                  Por segurança, o navegador precisa que você reautorize o acesso à pasta de
+                  <strong className="text-foreground"> {course.name}</strong> a cada sessão.
+                </>
+              )}
             </p>
+            <input
+              ref={fallbackInputRef}
+              type="file"
+              // @ts-expect-error webkitdirectory non-standard
+              webkitdirectory=""
+              directory=""
+              multiple
+              hidden
+              onChange={handleReattachFolder}
+            />
             <div className="mt-5 flex justify-center gap-2">
               <Link to="/"><Button variant="outline" className="rounded-xl">Voltar</Button></Link>
-              <Button onClick={requestPermission} className="rounded-xl">Autorizar pasta</Button>
+              <Button
+                onClick={() => isMemory ? fallbackInputRef.current?.click() : requestPermission()}
+                className="rounded-xl"
+              >
+                {isMemory ? "Selecionar pasta" : "Autorizar pasta"}
+              </Button>
             </div>
           </div>
         </div>

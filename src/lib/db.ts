@@ -20,9 +20,14 @@ export interface Course {
   name: string;
   description?: string;
   createdAt: number;
-  // FileSystemDirectoryHandle is non-serializable across some boundaries but
-  // IndexedDB supports it natively.
-  handle: FileSystemDirectoryHandle;
+  // Source can be either a File System Access API directory handle (Chromium)
+  // or "memory" for browsers that only support <input webkitdirectory> (Firefox/Safari).
+  // When "memory", the user must reselect the folder each session.
+  source: "handle" | "memory";
+  // Native handle (only present in Chromium-based browsers)
+  handle?: FileSystemDirectoryHandle;
+  // For "memory" sources we store the original folder name for re-matching
+  rootName?: string;
   color: string; // accent color seed
 }
 
