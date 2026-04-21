@@ -9,8 +9,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getCourse, listFiles, upsertFiles, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
 import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
 import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
-import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X } from "lucide-react";
 import { toast } from "sonner";
+import { Toggle } from "@/components/ui/toggle";
+import { usePref } from "@/lib/prefs";
 
 export const Route = createFileRoute("/course/$courseId")({
   component: CoursePage,
