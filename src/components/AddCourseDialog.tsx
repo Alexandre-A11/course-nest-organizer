@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { FolderPlus, FolderOpen, Loader2, Info } from "lucide-react";
-import { isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getBrowserInfo } from "@/lib/fs";
+import { isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getBrowserInfo, getKind } from "@/lib/fs";
 import { saveCourse, upsertFiles, type Course } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { toast } from "sonner";
@@ -107,11 +107,9 @@ export function AddCourseDialog({ onAdded }: Props) {
         path,
         name: f.name,
         size: f.size,
-        kind: (await import("@/lib/fs")).getKind(f.name),
+        kind: getKind(f.name),
       }));
-      // Resolve the dynamic import promise
-      const resolvedScanned = await Promise.all(scanned.map(async (s) => ({ ...s, kind: await s.kind })));
-      const metas = mergeScanWithMeta(id, resolvedScanned, []);
+      const metas = mergeScanWithMeta(id, scanned, []);
       await upsertFiles(metas);
       scannedCount = metas.length;
     }
