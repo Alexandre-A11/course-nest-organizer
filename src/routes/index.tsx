@@ -13,6 +13,7 @@ import { hasCourseFiles } from "@/lib/sessionFiles";
 import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, AlertTriangle, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
 import { usePref } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import {
