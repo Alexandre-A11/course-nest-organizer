@@ -103,12 +103,14 @@ export function AddCourseDialog({ onAdded }: Props) {
       scannedCount = metas.length;
     } else if (memoryFiles) {
       setCourseFiles(id, memoryFiles);
-      const scanned = Array.from(memoryFiles.entries()).map(([path, f]) => ({
-        path,
-        name: f.name,
-        size: f.size,
-        kind: getKind(f.name),
-      }));
+      const scanned = Array.from(memoryFiles.entries()).map(([path, f]) => {
+        return {
+          path,
+          name: f.name,
+          size: f.size,
+          kind: getKind(f.name),
+        };
+      });
       const metas = mergeScanWithMeta(id, scanned, []);
       await upsertFiles(metas);
       scannedCount = metas.length;
