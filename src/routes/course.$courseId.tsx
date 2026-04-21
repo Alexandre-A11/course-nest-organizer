@@ -268,23 +268,56 @@ function CoursePage() {
                 className="rounded-xl pl-9 text-sm"
               />
             </div>
-            <ToggleGroup
-              type="single"
-              value={filter}
-              onValueChange={(v) => v && setFilter(v as typeof filter)}
-              className="justify-start gap-1"
-            >
-              <ToggleGroupItem value="all" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Todos</ToggleGroupItem>
-              <ToggleGroupItem value="video" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Vídeos</ToggleGroupItem>
-              <ToggleGroupItem value="pdf" size="sm" className="h-7 rounded-lg px-2.5 text-xs">PDFs</ToggleGroupItem>
-              <ToggleGroupItem value="unwatched" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Pendentes</ToggleGroupItem>
-            </ToggleGroup>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <ToggleGroup
+                type="single"
+                value={filter}
+                onValueChange={(v) => v && setFilter(v as typeof filter)}
+                className="justify-start gap-1"
+              >
+                <ToggleGroupItem value="all" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Todos</ToggleGroupItem>
+                <ToggleGroupItem value="video" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Vídeos</ToggleGroupItem>
+                <ToggleGroupItem value="pdf" size="sm" className="h-7 rounded-lg px-2.5 text-xs">PDFs</ToggleGroupItem>
+                <ToggleGroupItem value="unwatched" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Pendentes</ToggleGroupItem>
+              </ToggleGroup>
+              <div className="flex items-center gap-1">
+                <Toggle
+                  size="sm"
+                  pressed={flatView === "on"}
+                  onPressedChange={(p) => setFlatView(p ? "on" : "off")}
+                  className="h-7 rounded-lg px-2"
+                  title={flatView === "on" ? "Mostrar pastas" : "Ocultar pastas (lista plana)"}
+                  aria-label="Alternar pastas"
+                >
+                  {flatView === "on" ? <ListTree className="h-3.5 w-3.5" /> : <FolderTree className="h-3.5 w-3.5" />}
+                </Toggle>
+                {focusFolder && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFocusFolder(null)}
+                    className="h-7 gap-1 rounded-lg px-2 text-xs"
+                    title="Limpar foco"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex-1 overflow-auto p-2">
             {filtered.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">Nenhum arquivo encontrado</p>
             ) : (
-              <FileTree files={filtered} selectedId={selectedId} onSelect={(f) => setSelectedId(f.id)} />
+              <FileTree
+                files={filtered}
+                selectedId={selectedId}
+                onSelect={(f) => setSelectedId(f.id)}
+                flat={flatView === "on"}
+                focusFolder={focusFolder}
+                onSetFocusFolder={setFocusFolder}
+                highlightFolder={highlightFolder}
+              />
             )}
           </div>
         </aside>
@@ -292,7 +325,17 @@ function CoursePage() {
         {/* Viewer */}
         <section className="overflow-hidden">
           {selected && course ? (
-            <FileViewer course={course} file={selected} onUpdated={handleUpdated} />
+            <FileViewer
+              course={course}
+              file={selected}
+              onUpdated={handleUpdated}
+              onLocateFolder={(folder) => {
+                setFlatView("off");
+                setHighlightFolder(folder);
+                // clear highlight after a moment so re-clicks re-trigger
+                setTimeout(() => setHighlightFolder(null), 1800);
+              }}
+            />
           ) : (
             <div className="flex h-full items-center justify-center p-10 text-center">
               <div className="max-w-sm">
