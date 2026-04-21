@@ -35,6 +35,9 @@ function CoursePage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unwatched" | FileKind>("all");
   const [rescanning, setRescanning] = useState(false);
+  const [flatView, setFlatView] = usePref<"on" | "off">("course.flatView", "off");
+  const [focusFolder, setFocusFolder] = useState<string | null>(null);
+  const [highlightFolder, setHighlightFolder] = useState<string | null>(null);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
