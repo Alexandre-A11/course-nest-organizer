@@ -34,9 +34,11 @@ interface Props {
   /** Optional callback to inject a timestamp link string (e.g. "[1:23] "). */
   onInsertTimestamp?: () => string | null;
   className?: string;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
-export function RichNoteEditor({ value, onChange, placeholder, onInsertTimestamp, className }: Props) {
+export function RichNoteEditor({ value, onChange, placeholder, onInsertTimestamp, className, onFocus, onBlur }: Props) {
   // Track the last value we emitted so external state updates (e.g. switching
   // file) reset the editor without clobbering local edits.
   const lastEmitted = useRef(value);
@@ -63,6 +65,8 @@ export function RichNoteEditor({ value, onChange, placeholder, onInsertTimestamp
       lastEmitted.current = html;
       onChange(html);
     },
+    onFocus: () => { onFocus?.(); },
+    onBlur: () => { onBlur?.(); },
   });
 
   // Sync external value changes (file switch) only when content really differs.
