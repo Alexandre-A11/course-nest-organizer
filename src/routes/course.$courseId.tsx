@@ -9,10 +9,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getCourse, listFiles, upsertFiles, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
 import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
 import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
-import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Toggle } from "@/components/ui/toggle";
 import { usePref } from "@/lib/prefs";
+import { EditCourseDialog } from "@/components/EditCourseDialog";
+import { getCategory } from "@/lib/categories";
 
 export const Route = createFileRoute("/course/$courseId")({
   component: CoursePage,
@@ -38,6 +40,7 @@ function CoursePage() {
   const [flatView, setFlatView] = usePref<"on" | "off">("course.flatView", "off");
   const [focusFolder, setFocusFolder] = useState<string | null>(null);
   const [highlightFolder, setHighlightFolder] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -226,36 +229,53 @@ function CoursePage() {
 
       {/* Course bar */}
       <div className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link to="/" className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <div>
-              <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">{course?.name}</h1>
-              {course?.description && <p className="text-xs text-muted-foreground">{course.description}</p>}
+            {course?.banner && (
+              <img src={course.banner} alt="" className="hidden h-10 w-10 shrink-0 rounded-lg object-cover sm:block" />
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                {course && getCategory(course.category) && (() => {
+                  const cat = getCategory(course.category)!;
+                  const Icon = cat.icon;
+                  return <Icon className={`h-4 w-4 shrink-0 ${cat.color}`} aria-label={cat.name} />;
+                })()}
+                <h1 className="truncate font-display text-base font-semibold tracking-tight text-foreground sm:text-xl">{course?.name}</h1>
+                <button
+                  onClick={() => setEditing(true)}
+                  title="Editar curso"
+                  className="rounded p-1 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {course?.description && <p className="truncate text-xs text-muted-foreground">{course.description}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-3 rounded-xl bg-muted/60 px-3 py-1.5">
               <div className="text-xs">
                 <span className="font-display text-base font-bold text-foreground">{stats.progress}%</span>
                 <span className="ml-1 text-muted-foreground">({stats.watched}/{stats.videos})</span>
               </div>
-              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
+              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-secondary sm:w-24">
                 <div className="h-full rounded-full bg-gradient-hero transition-all" style={{ width: `${stats.progress}%` }} />
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={rescan} disabled={rescanning} className="rounded-xl gap-1.5">
+            <Button variant="outline" size="sm" onClick={rescan} disabled={rescanning} className="h-8 rounded-xl gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${rescanning ? "animate-spin" : ""}`} />
-              Sincronizar
+              <span className="hidden sm:inline">Sincronizar</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Main */}
-      <div className="grid flex-1 overflow-hidden lg:grid-cols-[320px_1fr]">
+      <div className="grid flex-1 overflow-hidden lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
         {/* Sidebar */}
         <aside className="flex flex-col overflow-hidden border-b border-border bg-card lg:border-b-0 lg:border-r">
           <div className="space-y-3 border-b border-border p-4">
@@ -351,6 +371,13 @@ function CoursePage() {
           )}
         </section>
       </div>
+
+      <EditCourseDialog
+        course={course}
+        open={editing}
+        onOpenChange={setEditing}
+        onSaved={(c) => setCourse(c)}
+      />
     </div>
   );
 }
