@@ -426,6 +426,20 @@ function formatTime(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function stripHtml(html: string): string {
+  if (typeof document === "undefined") return html.replace(/<[^>]+>/g, "");
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  return tmp.textContent ?? "";
+}
+
+function stripIfEmpty(html: string): string | undefined {
+  const text = stripHtml(html).trim();
+  // TipTap emits "<p></p>" for an empty doc — treat that as no comment.
+  if (!text) return undefined;
+  return html;
+}
+
 function parseTimestamps(text: string): { label: string; seconds: number }[] {
   const re = /\[(\d{1,2}(?::\d{1,2}){1,2})\]/g;
   const out: { label: string; seconds: number }[] = [];
