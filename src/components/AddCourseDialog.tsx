@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { FolderPlus, FolderOpen, Loader2, AlertTriangle } from "lucide-react";
-import { isFsAccessSupported, scanDirectory, mergeScanWithMeta } from "@/lib/fs";
+import { FolderPlus, FolderOpen, Loader2, Info } from "lucide-react";
+import { isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getBrowserInfo } from "@/lib/fs";
 import { saveCourse, upsertFiles, type Course } from "@/lib/db";
+import { setCourseFiles } from "@/lib/sessionFiles";
 import { toast } from "sonner";
 
 const ACCENT_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899"];
@@ -20,19 +21,28 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [handle, setHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [memoryFiles, setMemoryFiles] = useState<Map<string, File> | null>(null);
+  const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+  const fallbackInputRef = useRef<HTMLInputElement>(null);
   const supported = isFsAccessSupported();
+  const browser = getBrowserInfo();
 
   const reset = () => {
-    setName(""); setDescription(""); setHandle(null); setFileCount(0);
+    setName(""); setDescription(""); setHandle(null); setMemoryFiles(null); setRootName(""); setFileCount(0);
   };
 
   const pickFolder = async () => {
+    if (!supported) {
+      fallbackInputRef.current?.click();
+      return;
+    }
     try {
       // @ts-expect-error showDirectoryPicker
       const dir = (await window.showDirectoryPicker({ mode: "read" })) as FileSystemDirectoryHandle;
       setHandle(dir);
+      setMemoryFiles(null);
       if (!name) setName(dir.name);
       setScanning(true);
       const scanned = await scanDirectory(dir);
@@ -46,27 +56,70 @@ export function AddCourseDialog({ onAdded }: Props) {
     }
   };
 
+  const handleFallbackPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const list = e.target.files;
+    if (!list || list.length === 0) return;
+    setScanning(true);
+    const { files, rootName: rn, fileMap } = scanFileList(list);
+    setMemoryFiles(fileMap);
+    setHandle(null);
+    setRootName(rn);
+    if (!name) setName(rn);
+    setFileCount(files.length);
+    setScanning(false);
+  };
+
   const submit = async () => {
-    if (!handle || !name.trim()) return;
+    if ((!handle && !memoryFiles) || !name.trim()) return;
     setScanning(true);
     const id = crypto.randomUUID();
-    const course: Course = {
-      id,
-      name: name.trim(),
-      description: description.trim() || undefined,
-      createdAt: Date.now(),
-      handle,
-      color: ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)],
-    };
+    const color = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    const course: Course = handle
+      ? {
+          id,
+          name: name.trim(),
+          description: description.trim() || undefined,
+          createdAt: Date.now(),
+          source: "handle",
+          handle,
+          color,
+        }
+      : {
+          id,
+          name: name.trim(),
+          description: description.trim() || undefined,
+          createdAt: Date.now(),
+          source: "memory",
+          rootName,
+          color,
+        };
     await saveCourse(course);
-    const scanned = await scanDirectory(handle);
-    const metas = mergeScanWithMeta(id, scanned, []);
-    await upsertFiles(metas);
+
+    let scannedCount = 0;
+    if (handle) {
+      const scanned = await scanDirectory(handle);
+      const metas = mergeScanWithMeta(id, scanned, []);
+      await upsertFiles(metas);
+      scannedCount = metas.length;
+    } else if (memoryFiles) {
+      setCourseFiles(id, memoryFiles);
+      const scanned = Array.from(memoryFiles.entries()).map(([path, f]) => ({
+        path,
+        name: f.name,
+        size: f.size,
+        kind: (await import("@/lib/fs")).getKind(f.name),
+      }));
+      // Resolve the dynamic import promise
+      const resolvedScanned = await Promise.all(scanned.map(async (s) => ({ ...s, kind: await s.kind })));
+      const metas = mergeScanWithMeta(id, resolvedScanned, []);
+      await upsertFiles(metas);
+      scannedCount = metas.length;
+    }
     setScanning(false);
     setOpen(false);
     reset();
     onAdded();
-    toast.success(`Curso "${course.name}" adicionado com ${metas.length} arquivos`);
+    toast.success(`Curso "${course.name}" adicionado com ${scannedCount} arquivos`);
   };
 
   return (
@@ -86,11 +139,24 @@ export function AddCourseDialog({ onAdded }: Props) {
         </DialogHeader>
 
         {!supported && (
-          <div className="flex gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-            <p>Seu navegador não suporta acesso a pastas. Use Chrome, Edge ou Brave atualizados.</p>
+          <div className="flex gap-3 rounded-xl border border-primary/20 bg-primary-soft/40 p-3 text-sm text-foreground">
+            <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <p>
+              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível: você precisará reselecionar a pasta a cada sessão. Para acesso permanente, use Chrome, Edge, Brave ou Vivaldi.
+            </p>
           </div>
         )}
+
+        <input
+          ref={fallbackInputRef}
+          type="file"
+          // @ts-expect-error webkitdirectory non-standard
+          webkitdirectory=""
+          directory=""
+          multiple
+          hidden
+          onChange={handleFallbackPick}
+        />
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -98,14 +164,14 @@ export function AddCourseDialog({ onAdded }: Props) {
             <button
               type="button"
               onClick={pickFolder}
-              disabled={!supported || scanning}
+              disabled={scanning}
               className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3.5 text-left transition-colors hover:border-primary/50 hover:bg-primary-soft/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <FolderOpen className="h-5 w-5 text-primary" />
               <div className="flex-1 min-w-0">
-                {handle ? (
+                {handle || memoryFiles ? (
                   <>
-                    <p className="truncate text-sm font-medium text-foreground">{handle.name}</p>
+                    <p className="truncate text-sm font-medium text-foreground">{handle?.name ?? rootName}</p>
                     <p className="text-xs text-muted-foreground">
                       {scanning ? "Escaneando..." : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
                     </p>
@@ -149,7 +215,7 @@ export function AddCourseDialog({ onAdded }: Props) {
           <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">
             Cancelar
           </Button>
-          <Button onClick={submit} disabled={!handle || !name.trim() || scanning} className="rounded-xl">
+          <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Criar curso
           </Button>
