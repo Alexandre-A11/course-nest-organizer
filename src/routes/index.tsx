@@ -4,10 +4,13 @@ import { AppHeader } from "@/components/AppHeader";
 import { AddCourseDialog } from "@/components/AddCourseDialog";
 import { CourseCard, type CourseViewMode } from "@/components/CourseCard";
 import { EditCourseDialog } from "@/components/EditCourseDialog";
-import { CATEGORIES, getCategory } from "@/lib/categories";
+import { getCategory } from "@/lib/categories";
+import { useCategories } from "@/hooks/use-categories";
+import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
 import { isFsAccessSupported } from "@/lib/fs";
-import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X } from "lucide-react";
+import { hasCourseFiles } from "@/lib/sessionFiles";
+import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, AlertTriangle, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { usePref } from "@/lib/prefs";
@@ -35,6 +38,8 @@ function Home() {
   const [editing, setEditing] = useState<Course | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [view, setView] = usePref<CourseViewMode>("home.view", "grid");
+  const [manageCats, setManageCats] = useState(false);
+  const cats = useCategories();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,7 +70,12 @@ function Home() {
     for (const c of courses) if (c.category) set.add(c.category);
     return set;
   }, [courses]);
-  const visibleCategories = CATEGORIES.filter((c) => usedCategoryIds.has(c.id));
+  const visibleCategories = cats.filter((c) => usedCategoryIds.has(c.id));
+
+  // Detect courses whose folder is unavailable in this session.
+  const missingCourses = useMemo(() => {
+    return courses.filter((c) => c.source === "memory" && !hasCourseFiles(c.id));
+  }, [courses]);
 
   const filteredCourses = useMemo(() => {
     if (!categoryFilter) return courses;
