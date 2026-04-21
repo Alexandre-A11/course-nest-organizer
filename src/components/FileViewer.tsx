@@ -6,8 +6,7 @@ import { getCourseFiles } from "@/lib/sessionFiles";
 import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, File as FileIcon,
-  FolderTree, Gauge, Copy, Check, FileDown, PanelRightClose, PanelBottomClose,
-  PanelRight, EyeOff, Eye, Columns2, Rows2,
+  FolderTree, Gauge, Copy, Check, FileDown, EyeOff, Eye, Columns2, Rows2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
