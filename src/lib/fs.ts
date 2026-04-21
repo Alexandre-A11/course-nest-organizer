@@ -1,4 +1,5 @@
 import type { CourseFileMeta, FileKind } from "./db";
+import { getFileBlob } from "./db";
 
 const VIDEO_EXT = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
 const AUDIO_EXT = ["mp3", "m4a", "wav", "ogg", "flac"];
@@ -55,7 +56,15 @@ export async function getFileFromCourse(
   rootHandle: FileSystemDirectoryHandle | undefined,
   relPath: string,
   memoryFiles?: Map<string, File>,
+  cachedFileId?: string,
 ): Promise<File> {
+  if (cachedFileId) {
+    const blob = await getFileBlob(cachedFileId);
+    if (!blob) throw new Error("Arquivo em cache não encontrado");
+    // Wrap Blob as File so consumers that read .name work consistently.
+    const name = relPath.split("/").pop() ?? "file";
+    return new File([blob], name, { type: blob.type });
+  }
   if (memoryFiles) {
     const f = memoryFiles.get(relPath);
     if (!f) throw new Error("Arquivo não disponível na sessão atual");
