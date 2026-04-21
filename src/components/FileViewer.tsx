@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { upsertFile } from "@/lib/db";
 import { getFileFromCourse, formatBytes } from "@/lib/fs";
@@ -6,7 +6,7 @@ import { getCourseFiles } from "@/lib/sessionFiles";
 import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, File as FileIcon,
-  FolderTree, Gauge, Copy, Check, FileDown, EyeOff, Eye, Columns2, Rows2,
+  FolderTree, Gauge, Copy, Check, FileDown, EyeOff, Eye, Pause, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,12 @@ interface Props {
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 const SPEED_KEY = "course-vault.playbackRate";
+const NOTES_WIDTH_KEY = "course-vault.notesWidth";
+const PAUSE_ON_TYPE_KEY = "course-vault.pauseOnType";
+
+const DEFAULT_NOTES_WIDTH = 420;
+const MIN_NOTES_WIDTH = 280;
+const MAX_NOTES_WIDTH = 720;
 
 export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const [url, setUrl] = useState<string | null>(null);
@@ -35,8 +41,17 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const [savingComment, setSavingComment] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [pathCopied, setPathCopied] = useState(false);
-  const [notesLayout, setNotesLayout] = usePref<"horizontal" | "vertical">("notes.layout", "horizontal");
   const [notesVisible, setNotesVisible] = usePref<"on" | "off">("notes.visible", "on");
+  const [pauseOnType, setPauseOnType] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(PAUSE_ON_TYPE_KEY) === "1";
+  });
+  const [notesWidth, setNotesWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return DEFAULT_NOTES_WIDTH;
+    const v = parseInt(window.localStorage.getItem(NOTES_WIDTH_KEY) ?? "", 10);
+    if (Number.isFinite(v) && v >= MIN_NOTES_WIDTH && v <= MAX_NOTES_WIDTH) return v;
+    return DEFAULT_NOTES_WIDTH;
+  });
   const [speed, setSpeed] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
     const v = parseFloat(window.localStorage.getItem(SPEED_KEY) ?? "1");
@@ -45,20 +60,23 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
   const blobRef = useRef<File | null>(null);
   const commentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasPlayingRef = useRef(false);
 
   const folderPath = file.path.includes("/") ? file.path.split("/").slice(0, -1).join("/") : "";
 
+  // Load file blob -> objectURL. CRITICAL: do NOT depend on file.comment, otherwise
+  // the video reloads (and resets to t=0) on every keystroke in the notes.
   useEffect(() => {
     let active = true;
     let objectUrl: string | null = null;
     setLoading(true);
     setError(null);
-    setComment(file.comment ?? "");
 
     (async () => {
       try {
         const memFiles = course.source === "memory" ? getCourseFiles(course.id) : undefined;
-        const blob = await getFileFromCourse(course.handle, file.path, memFiles);
+        const cachedId = course.source === "cached" ? file.id : undefined;
+        const blob = await getFileFromCourse(course.handle, file.path, memFiles, cachedId);
         if (!active) return;
         blobRef.current = blob;
         objectUrl = URL.createObjectURL(blob);
@@ -76,17 +94,51 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [course, file.id, file.path, file.comment]);
+  }, [course, file.id, file.path]);
+
+  // Sync local comment state when file changes (separate from blob effect).
+  useEffect(() => {
+    setComment(file.comment ?? "");
+  }, [file.id, file.comment]);
 
   // Apply persisted speed when media element mounts / file changes
   useEffect(() => {
     if (mediaRef.current) mediaRef.current.playbackRate = speed;
   }, [speed, url]);
 
+  // Notes width drag
+  const dragStartRef = useRef<{ x: number; w: number } | null>(null);
+  const onDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    dragStartRef.current = { x: e.clientX, w: notesWidth };
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+  };
+  const onDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    const dx = dragStartRef.current.x - e.clientX;
+    const next = Math.min(MAX_NOTES_WIDTH, Math.max(MIN_NOTES_WIDTH, dragStartRef.current.w + dx));
+    setNotesWidth(next);
+  };
+  const onDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    dragStartRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    try { window.localStorage.setItem(NOTES_WIDTH_KEY, String(notesWidth)); } catch { /* ignore */ }
+  };
+
   const setSpeedAndPersist = (s: number) => {
     setSpeed(s);
     if (mediaRef.current) mediaRef.current.playbackRate = s;
     try { window.localStorage.setItem(SPEED_KEY, String(s)); } catch { /* ignore */ }
+  };
+
+  const togglePauseOnType = () => {
+    setPauseOnType((v) => {
+      const next = !v;
+      try { window.localStorage.setItem(PAUSE_ON_TYPE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
   };
 
   const toggleWatched = async () => {
@@ -109,6 +161,28 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       setTimeout(() => setSavedFlash(false), 1200);
     }, 500);
   };
+
+  // Pause-on-type lifecycle: when the user focuses the editor, pause; when they
+  // blur (or toggle off), resume if it was playing.
+  const handleEditorFocus = useCallback(() => {
+    if (!pauseOnType) return;
+    const m = mediaRef.current;
+    if (!m) return;
+    if (!m.paused) {
+      wasPlayingRef.current = true;
+      m.pause();
+    }
+  }, [pauseOnType]);
+
+  const handleEditorBlur = useCallback(() => {
+    if (!pauseOnType) return;
+    const m = mediaRef.current;
+    if (!m) return;
+    if (wasPlayingRef.current) {
+      wasPlayingRef.current = false;
+      m.play().catch(() => { /* ignore */ });
+    }
+  }, [pauseOnType]);
 
   const buildTimestampSnippet = (): string | null => {
     const t = mediaRef.current?.currentTime;
@@ -152,7 +226,6 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     }
   };
 
-  // Detect [mm:ss] tokens (in plain text view of the HTML) for clickable chips
   const tokens = useMemo(() => parseTimestamps(stripHtml(comment)), [comment]);
   const isMedia = file.kind === "video" || file.kind === "audio";
   const showNotes = notesVisible === "on";
@@ -167,184 +240,196 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   };
 
   return (
-    <div className={cn(
-      "flex h-full",
-      showNotes && notesLayout === "vertical" ? "flex-row" : "flex-col",
-    )}>
+    <div className="flex h-full flex-col md:flex-row">
       <div className="flex min-w-0 flex-1 flex-col">
-      {/* File header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground line-clamp-1">
-              {folderPath || course.name}
-            </p>
-            {folderPath && onLocateFolder && (
+        {/* Header */}
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground line-clamp-1">
+                {folderPath || course.name}
+              </p>
+              {folderPath && onLocateFolder && (
+                <button
+                  onClick={() => onLocateFolder(folderPath)}
+                  title="Mostrar pasta na lista"
+                  className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
+                >
+                  <FolderTree className="h-3 w-3" />
+                </button>
+              )}
               <button
-                onClick={() => onLocateFolder(folderPath)}
-                title="Mostrar pasta na lista"
+                onClick={copyPath}
+                title="Copiar caminho"
                 className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
               >
-                <FolderTree className="h-3 w-3" />
+                {pathCopied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
               </button>
-            )}
-            <button
-              onClick={copyPath}
-              title="Copiar caminho"
-              className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
-            >
-              {pathCopied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
-            </button>
+            </div>
+            <h2 className="mt-0.5 font-display text-base sm:text-lg font-semibold tracking-tight text-foreground line-clamp-1">
+              {file.name}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{formatBytes(file.size)}</p>
           </div>
-          <h2 className="mt-0.5 font-display text-base sm:text-lg font-semibold tracking-tight text-foreground line-clamp-1">
-            {file.name}
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{formatBytes(file.size)}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {isMedia && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 rounded-xl gap-1.5 px-2.5">
-                  <Gauge className="h-3.5 w-3.5" />
-                  {speed}×
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {isMedia && (
+              <>
+                <Button
+                  variant={pauseOnType ? "default" : "outline"}
+                  size="sm"
+                  onClick={togglePauseOnType}
+                  className="h-8 rounded-xl gap-1.5 px-2.5"
+                  title={pauseOnType ? "Pausar enquanto digita: ATIVO" : "Pausar enquanto digita: desligado"}
+                >
+                  {pauseOnType ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                  <span className="hidden lg:inline">{pauseOnType ? "Pausa ao digitar" : "Sem pausa"}</span>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-xl">
-                {SPEEDS.map((s) => (
-                  <DropdownMenuItem
-                    key={s}
-                    onClick={() => setSpeedAndPersist(s)}
-                    className={cn("justify-between", s === speed && "font-semibold text-primary")}
-                  >
-                    {s}×
-                    {s === speed && <Check className="h-3.5 w-3.5" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setNotesVisible(showNotes ? "off" : "on")}
-            className="h-8 rounded-xl gap-1.5 px-2.5"
-            title={showNotes ? "Ocultar anotações" : "Mostrar anotações"}
-          >
-            {showNotes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{showNotes ? "Ocultar notas" : "Mostrar notas"}</span>
-          </Button>
-          {showNotes && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 rounded-xl gap-1.5 px-2.5">
+                      <Gauge className="h-3.5 w-3.5" />
+                      {speed}×
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="rounded-xl">
+                    {SPEEDS.map((s) => (
+                      <DropdownMenuItem
+                        key={s}
+                        onClick={() => setSpeedAndPersist(s)}
+                        className={cn("justify-between", s === speed && "font-semibold text-primary")}
+                      >
+                        {s}×
+                        {s === speed && <Check className="h-3.5 w-3.5" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setNotesLayout(notesLayout === "horizontal" ? "vertical" : "horizontal")}
-              className="h-8 rounded-xl gap-1.5 px-2.5 hidden md:inline-flex"
-              title={notesLayout === "horizontal" ? "Mover notas para a direita" : "Mover notas para baixo"}
+              onClick={() => setNotesVisible(showNotes ? "off" : "on")}
+              className="h-8 rounded-xl gap-1.5 px-2.5"
+              title={showNotes ? "Ocultar anotações" : "Mostrar anotações"}
             >
-              {notesLayout === "horizontal" ? <Columns2 className="h-3.5 w-3.5" /> : <Rows2 className="h-3.5 w-3.5" />}
+              {showNotes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{showNotes ? "Ocultar notas" : "Mostrar notas"}</span>
             </Button>
+            <Button variant="outline" size="sm" onClick={downloadFile} disabled={!url} className="h-8 rounded-xl gap-1.5 px-2.5">
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Baixar</span>
+            </Button>
+            <Button
+              variant={file.watched ? "default" : "outline"}
+              size="sm"
+              onClick={toggleWatched}
+              className={cn("h-8 rounded-xl gap-1.5 px-2.5", file.watched && "bg-success hover:bg-success/90 text-success-foreground")}
+            >
+              {file.watched ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{file.watched ? "Assistido" : "Marcar assistido"}</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Viewer */}
+        <div className="flex-1 overflow-auto bg-muted/30">
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="flex h-full items-center justify-center p-6">
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">
+                {error}
+              </div>
+            </div>
+          ) : (
+            <ViewerContent
+              file={file}
+              url={url!}
+              onVideoEnded={handleVideoEnded}
+              mediaRef={mediaRef}
+              initialSpeed={speed}
+            />
           )}
-          <Button variant="outline" size="sm" onClick={downloadFile} disabled={!url} className="h-8 rounded-xl gap-1.5 px-2.5">
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Baixar</span>
-          </Button>
-          <Button
-            variant={file.watched ? "default" : "outline"}
-            size="sm"
-            onClick={toggleWatched}
-            className={cn("h-8 rounded-xl gap-1.5 px-2.5", file.watched && "bg-success hover:bg-success/90 text-success-foreground")}
-          >
-            {file.watched ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{file.watched ? "Assistido" : "Marcar assistido"}</span>
-          </Button>
         </div>
       </div>
 
-      {/* Viewer */}
-      <div className="flex-1 overflow-auto bg-muted/30">
-        {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="flex h-full items-center justify-center p-6">
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">
-              {error}
-            </div>
-          </div>
-        ) : (
-          <ViewerContent
-            file={file}
-            url={url!}
-            onVideoEnded={handleVideoEnded}
-            mediaRef={mediaRef}
-            initialSpeed={speed}
-          />
-        )}
-      </div>
-      </div>
-
+      {/* Notes sidebar (vertical only). On mobile (<md) it stacks below. */}
       {showNotes && (
-        <aside
-          className={cn(
-            "flex flex-col bg-card",
-            notesLayout === "vertical"
-              ? "w-full max-w-[420px] shrink-0 border-l border-border"
-              : "border-t border-border",
-          )}
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 sm:px-6">
-            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Anotações
-              {savingComment ? (
-                <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">salvando…</span>
-              ) : savedFlash ? (
-                <span className="ml-1 flex items-center gap-1 text-[11px] font-normal normal-case tracking-normal text-success">
-                  <Check className="h-3 w-3" /> salvo
-                </span>
-              ) : null}
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs">
-                  <FileDown className="h-3.5 w-3.5" />
-                  Baixar
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-xl">
-                <DropdownMenuItem onClick={() => handleExport("pdf")}>PDF (.pdf)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("doc")}>Word (.doc)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("md")}>Markdown (.md)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("html")}>HTML (.html)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("txt")}>Texto (.txt)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <>
+          {/* Drag handle (visible on md+) */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={onDragStart}
+            onPointerMove={onDragMove}
+            onPointerUp={onDragEnd}
+            onPointerCancel={onDragEnd}
+            className="hidden md:flex w-1.5 cursor-col-resize select-none items-center justify-center bg-border/40 transition-colors hover:bg-primary/40"
+            title="Arraste para redimensionar"
+          >
+            <div className="h-8 w-0.5 rounded-full bg-muted-foreground/40" />
           </div>
-          <div className="flex-1 overflow-auto px-4 py-3 sm:px-6">
-            <RichNoteEditor
-              value={comment}
-              onChange={handleCommentChange}
-              placeholder={isMedia
-                ? "Suas notas sobre essa aula… use ‘Marcar tempo’ para inserir [mm:ss] clicáveis."
-                : "Suas notas sobre esse material…"}
-              onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
-            />
-            {isMedia && tokens.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {tokens.map((t, i) => (
-                  <button
-                    key={i}
-                    onClick={() => seekTo(t.seconds)}
-                    className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary"
-                  >
-                    ▶ {t.label}
-                  </button>
-                ))}
+          <aside
+            className="flex flex-col bg-card md:shrink-0 border-t md:border-t-0 border-border w-full md:border-l"
+            style={typeof window !== "undefined" && window.innerWidth >= 768 ? { width: notesWidth } : undefined}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 sm:px-6">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Anotações
+                {savingComment ? (
+                  <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">salvando…</span>
+                ) : savedFlash ? (
+                  <span className="ml-1 flex items-center gap-1 text-[11px] font-normal normal-case tracking-normal text-success">
+                    <Check className="h-3 w-3" /> salvo
+                  </span>
+                ) : null}
               </div>
-            )}
-          </div>
-        </aside>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs">
+                    <FileDown className="h-3.5 w-3.5" />
+                    Baixar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl">
+                  <DropdownMenuItem onClick={() => handleExport("pdf")}>PDF (.pdf)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("doc")}>Word (.doc)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("md")}>Markdown (.md)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("html")}>HTML (.html)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("txt")}>Texto (.txt)</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex-1 overflow-auto px-4 py-3 sm:px-6">
+              <RichNoteEditor
+                value={comment}
+                onChange={handleCommentChange}
+                onFocus={handleEditorFocus}
+                onBlur={handleEditorBlur}
+                placeholder={isMedia
+                  ? "Suas notas sobre essa aula… use ‘Marcar tempo’ para inserir [mm:ss] clicáveis."
+                  : "Suas notas sobre esse material…"}
+                onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
+              />
+              {isMedia && tokens.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {tokens.map((t, i) => (
+                    <button
+                      key={i}
+                      onClick={() => seekTo(t.seconds)}
+                      className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary"
+                    >
+                      ▶ {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </>
       )}
     </div>
   );
@@ -434,7 +519,6 @@ function stripHtml(html: string): string {
 
 function stripIfEmpty(html: string): string | undefined {
   const text = stripHtml(html).trim();
-  // TipTap emits "<p></p>" for an empty doc — treat that as no comment.
   if (!text) return undefined;
   return html;
 }
