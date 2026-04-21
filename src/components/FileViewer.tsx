@@ -4,16 +4,19 @@ import { upsertFile } from "@/lib/db";
 import { getFileFromCourse, formatBytes } from "@/lib/fs";
 import { getCourseFiles } from "@/lib/sessionFiles";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, File as FileIcon,
-  FolderTree, Gauge, Clock, Plus, Copy, Check,
+  FolderTree, Gauge, Copy, Check, FileDown, PanelRightClose, PanelBottomClose,
+  PanelRight, EyeOff, Eye, Columns2, Rows2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
+import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
+import { usePref } from "@/lib/prefs";
 
 interface Props {
   course: Course;
@@ -33,6 +36,8 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const [savingComment, setSavingComment] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [pathCopied, setPathCopied] = useState(false);
+  const [notesLayout, setNotesLayout] = usePref<"horizontal" | "vertical">("notes.layout", "horizontal");
+  const [notesVisible, setNotesVisible] = usePref<"on" | "off">("notes.visible", "on");
   const [speed, setSpeed] = useState<number>(() => {
     if (typeof window === "undefined") return 1;
     const v = parseFloat(window.localStorage.getItem(SPEED_KEY) ?? "1");
@@ -97,7 +102,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     if (commentTimer.current) clearTimeout(commentTimer.current);
     setSavingComment(true);
     commentTimer.current = setTimeout(async () => {
-      const updated = { ...file, comment: val.trim() || undefined };
+      const updated = { ...file, comment: stripIfEmpty(val) };
       await upsertFile(updated);
       onUpdated(updated);
       setSavingComment(false);
@@ -106,12 +111,11 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     }, 500);
   };
 
-  const insertTimestamp = () => {
+  const buildTimestampSnippet = (): string | null => {
     const t = mediaRef.current?.currentTime;
-    if (t == null) return;
+    if (t == null) return null;
     const stamp = formatTime(t);
-    const sep = comment && !comment.endsWith("\n") ? "\n" : "";
-    handleCommentChange(`${comment}${sep}[${stamp}] `);
+    return `[${stamp}] `;
   };
 
   const downloadFile = () => {
@@ -149,14 +153,28 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     }
   };
 
-  // Detect [mm:ss] tokens in comments to render clickable chips for media
-  const tokens = useMemo(() => parseTimestamps(comment), [comment]);
+  // Detect [mm:ss] tokens (in plain text view of the HTML) for clickable chips
+  const tokens = useMemo(() => parseTimestamps(stripHtml(comment)), [comment]);
   const isMedia = file.kind === "video" || file.kind === "audio";
+  const showNotes = notesVisible === "on";
+
+  const handleExport = (format: ExportFormat) => {
+    exportNotes(format, {
+      filename: `${course.name} - ${file.name.replace(/\.[^.]+$/, "")}`,
+      title: file.name,
+      html: comment,
+    });
+    toast.success(`Notas exportadas (${format.toUpperCase()})`);
+  };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className={cn(
+      "flex h-full",
+      showNotes && notesLayout === "vertical" ? "flex-row" : "flex-col",
+    )}>
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* File header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-6 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground line-clamp-1">
@@ -179,16 +197,16 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               {pathCopied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
-          <h2 className="mt-0.5 font-display text-lg font-semibold tracking-tight text-foreground line-clamp-1">
+          <h2 className="mt-0.5 font-display text-base sm:text-lg font-semibold tracking-tight text-foreground line-clamp-1">
             {file.name}
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{formatBytes(file.size)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {isMedia && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
+                <Button variant="outline" size="sm" className="h-8 rounded-xl gap-1.5 px-2.5">
                   <Gauge className="h-3.5 w-3.5" />
                   {speed}×
                 </Button>
@@ -207,18 +225,39 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button variant="outline" size="sm" onClick={downloadFile} disabled={!url} className="rounded-xl gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setNotesVisible(showNotes ? "off" : "on")}
+            className="h-8 rounded-xl gap-1.5 px-2.5"
+            title={showNotes ? "Ocultar anotações" : "Mostrar anotações"}
+          >
+            {showNotes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{showNotes ? "Ocultar notas" : "Mostrar notas"}</span>
+          </Button>
+          {showNotes && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setNotesLayout(notesLayout === "horizontal" ? "vertical" : "horizontal")}
+              className="h-8 rounded-xl gap-1.5 px-2.5 hidden md:inline-flex"
+              title={notesLayout === "horizontal" ? "Mover notas para a direita" : "Mover notas para baixo"}
+            >
+              {notesLayout === "horizontal" ? <Columns2 className="h-3.5 w-3.5" /> : <Rows2 className="h-3.5 w-3.5" />}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={downloadFile} disabled={!url} className="h-8 rounded-xl gap-1.5 px-2.5">
             <Download className="h-3.5 w-3.5" />
-            Baixar
+            <span className="hidden sm:inline">Baixar</span>
           </Button>
           <Button
             variant={file.watched ? "default" : "outline"}
             size="sm"
             onClick={toggleWatched}
-            className={cn("rounded-xl gap-1.5", file.watched && "bg-success hover:bg-success/90 text-success-foreground")}
+            className={cn("h-8 rounded-xl gap-1.5 px-2.5", file.watched && "bg-success hover:bg-success/90 text-success-foreground")}
           >
             {file.watched ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
-            {file.watched ? "Assistido" : "Marcar assistido"}
+            <span className="hidden sm:inline">{file.watched ? "Assistido" : "Marcar assistido"}</span>
           </Button>
         </div>
       </div>
@@ -245,63 +284,69 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
           />
         )}
       </div>
-
-      {/* Comment */}
-      <div className="border-t border-border bg-card px-6 py-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <label htmlFor="comment" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Anotações
-            <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
-              {comment.length}
-            </span>
-          </label>
-          <div className="flex items-center gap-2">
-            {isMedia && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={insertTimestamp}
-                className="h-7 gap-1 rounded-lg px-2 text-xs"
-                title="Inserir tempo atual do vídeo"
-              >
-                <Clock className="h-3 w-3" />
-                <Plus className="h-2.5 w-2.5 -ml-0.5" />
-                Marcar tempo
-              </Button>
-            )}
-            {savingComment ? (
-              <span className="text-[11px] text-muted-foreground">salvando…</span>
-            ) : savedFlash ? (
-              <span className="flex items-center gap-1 text-[11px] text-success">
-                <Check className="h-3 w-3" /> salvo
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <Textarea
-          id="comment"
-          value={comment}
-          onChange={(e) => handleCommentChange(e.target.value)}
-          placeholder={isMedia
-            ? "Suas notas sobre essa aula… use [mm:ss] ou clique em ‘Marcar tempo’ para criar links clicáveis."
-            : "Suas notas sobre esse material…"}
-          rows={4}
-          className="min-h-[96px] max-h-[40vh] resize-y rounded-xl text-sm leading-relaxed"
-        />
-        {isMedia && tokens.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {tokens.map((t, i) => (
-              <button
-                key={i}
-                onClick={() => seekTo(t.seconds)}
-                className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary"
-              >
-                ▶ {t.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+
+      {showNotes && (
+        <aside
+          className={cn(
+            "flex flex-col bg-card",
+            notesLayout === "vertical"
+              ? "w-full max-w-[420px] shrink-0 border-l border-border"
+              : "border-t border-border",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 sm:px-6">
+            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Anotações
+              {savingComment ? (
+                <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">salvando…</span>
+              ) : savedFlash ? (
+                <span className="ml-1 flex items-center gap-1 text-[11px] font-normal normal-case tracking-normal text-success">
+                  <Check className="h-3 w-3" /> salvo
+                </span>
+              ) : null}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs">
+                  <FileDown className="h-3.5 w-3.5" />
+                  Baixar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl">
+                <DropdownMenuItem onClick={() => handleExport("pdf")}>PDF (.pdf)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("doc")}>Word (.doc)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("md")}>Markdown (.md)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("html")}>HTML (.html)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("txt")}>Texto (.txt)</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex-1 overflow-auto px-4 py-3 sm:px-6">
+            <RichNoteEditor
+              value={comment}
+              onChange={handleCommentChange}
+              placeholder={isMedia
+                ? "Suas notas sobre essa aula… use ‘Marcar tempo’ para inserir [mm:ss] clicáveis."
+                : "Suas notas sobre esse material…"}
+              onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
+            />
+            {isMedia && tokens.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {tokens.map((t, i) => (
+                  <button
+                    key={i}
+                    onClick={() => seekTo(t.seconds)}
+                    className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary"
+                  >
+                    ▶ {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
