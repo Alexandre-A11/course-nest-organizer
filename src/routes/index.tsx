@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { AddCourseDialog } from "@/components/AddCourseDialog";
-import { CourseCard } from "@/components/CourseCard";
+import { CourseCard, type CourseViewMode } from "@/components/CourseCard";
 import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
 import { isFsAccessSupported } from "@/lib/fs";
-import { GraduationCap, Sparkles, ShieldCheck, Cpu } from "lucide-react";
+import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3 } from "lucide-react";
 import { toast } from "sonner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { usePref } from "@/lib/prefs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
