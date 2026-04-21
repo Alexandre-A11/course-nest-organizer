@@ -127,7 +127,7 @@ function CoursePage() {
         <AppHeader />
         <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6">
           <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
               <AlertTriangle className="h-6 w-6" />
             </div>
             <h2 className="font-display text-xl font-semibold text-foreground">Permissão necessária</h2>
