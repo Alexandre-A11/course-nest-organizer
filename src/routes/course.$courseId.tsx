@@ -9,7 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getCourse, listFiles, upsertFiles, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
 import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
 import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
-import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil, HardDrive } from "lucide-react";
 import { toast } from "sonner";
 import { Toggle } from "@/components/ui/toggle";
 import { usePref } from "@/lib/prefs";
@@ -51,7 +51,9 @@ function CoursePage() {
         return;
       }
       setCourse(c);
-      if (c.source === "memory") {
+      if (c.source === "cached") {
+        // Files live in IndexedDB — nothing to re-pick.
+      } else if (c.source === "memory") {
         // Memory courses require re-picking the folder each session
         if (!hasCourseFiles(courseId)) {
           setNeedsAccess("memory");
@@ -65,6 +67,11 @@ function CoursePage() {
           setLoading(false);
           return;
         }
+      } else {
+        // Handle source but no handle stored (e.g. corrupted) — show error
+        setNeedsAccess("permission");
+        setLoading(false);
+        return;
       }
       const fs = await listFiles(courseId);
       setFiles(fs);
