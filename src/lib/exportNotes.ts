@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import TurndownService from "turndown";
-import { saveAs } from "file-saver";
+import FileSaver from "file-saver";
+
+const { saveAs } = FileSaver;
 
 const turndown = new TurndownService({
   headingStyle: "atx",
