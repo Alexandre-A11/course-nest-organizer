@@ -230,6 +230,17 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const isMedia = file.kind === "video" || file.kind === "audio";
   const showNotes = notesVisible === "on";
 
+  // Label for the "watched" toggle depends on the file kind. PDFs/docs are
+  // "read", media is "watched", anything else is generically "completed".
+  const watchedLabels = (() => {
+    if (file.kind === "video") return { done: "Assistido", todo: "Marcar assistido" };
+    if (file.kind === "audio") return { done: "Ouvido", todo: "Marcar ouvido" };
+    if (file.kind === "pdf" || file.kind === "doc" || file.kind === "text") {
+      return { done: "Lido", todo: "Marcar como lido" };
+    }
+    return { done: "Concluído", todo: "Marcar concluído" };
+  })();
+
   const handleExport = (format: ExportFormat) => {
     exportNotes(format, {
       filename: `${course.name} - ${file.name.replace(/\.[^.]+$/, "")}`,
