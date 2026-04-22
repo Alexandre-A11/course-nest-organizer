@@ -5,9 +5,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, RotateCcw } from "lucide-react";
 import {
   CATEGORY_ICONS, CATEGORY_COLORS, addCustomCategory, removeCustomCategory,
+  restoreBuiltinCategory, getRemovedBuiltins,
 } from "@/lib/categories";
 import { useCategories } from "@/hooks/use-categories";
 import { cn } from "@/lib/utils";
@@ -36,8 +37,12 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
     toast.success(`"${label}" removida`);
   };
 
-  const customCats = cats.filter((c) => !c.builtin);
-  const builtinCats = cats.filter((c) => c.builtin);
+  const restore = (id: string, label: string) => {
+    restoreBuiltinCategory(id);
+    toast.success(`"${label}" restaurada`);
+  };
+
+  const removedBuiltins = getRemovedBuiltins();
   const SelectedIcon = CATEGORY_ICONS[iconName];
 
   return (
@@ -116,16 +121,16 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
           </Button>
         </div>
 
-        {/* Custom list */}
+        {/* All categories */}
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Personalizadas ({customCats.length})
+            Suas categorias ({cats.length})
           </div>
-          {customCats.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma categoria personalizada ainda.</p>
+          {cats.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhuma categoria. Crie uma acima.</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
-              {customCats.map((c) => {
+              {cats.map((c) => {
                 const Icon = c.icon;
                 return (
                   <div
@@ -148,26 +153,31 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
           )}
         </div>
 
-        {/* Builtin list (read-only) */}
-        <div className="space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Padrão (não removíveis)
+        {/* Removed built-ins (restorable) */}
+        {removedBuiltins.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Padrão removidas ({removedBuiltins.length})
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {removedBuiltins.map((c) => {
+                const Icon = c.icon;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => restore(c.id, c.name)}
+                    title="Restaurar"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-foreground"
+                  >
+                    <Icon className={cn("h-3.5 w-3.5", c.color)} />
+                    <span>{c.name}</span>
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {builtinCats.map((c) => {
-              const Icon = c.icon;
-              return (
-                <div
-                  key={c.id}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground"
-                >
-                  <Icon className={cn("h-3.5 w-3.5", c.color)} />
-                  {c.name}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )}
 
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)} className="rounded-xl gap-1.5">
