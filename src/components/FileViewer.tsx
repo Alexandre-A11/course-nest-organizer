@@ -145,7 +145,16 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     const updated = { ...file, watched: !file.watched, watchedAt: !file.watched ? Date.now() : undefined };
     await upsertFile(updated);
     onUpdated(updated);
-    toast.success(updated.watched ? "Marcado como assistido" : "Desmarcado");
+    if (updated.watched) {
+      const msg =
+        file.kind === "video" ? "Marcado como assistido"
+        : file.kind === "audio" ? "Marcado como ouvido"
+        : (file.kind === "pdf" || file.kind === "doc") ? "Marcado como lido"
+        : "Marcado como concluído";
+      toast.success(msg);
+    } else {
+      toast.success("Desmarcado");
+    }
   };
 
   const handleCommentChange = (val: string) => {
