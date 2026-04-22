@@ -14,13 +14,12 @@ import {
   getBrowserInfo, getKind,
 } from "@/lib/fs";
 import {
-  saveCourse, upsertFiles, putFileBlobs, type Course,
+  saveCourse, upsertFiles, type Course,
 } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
 
 const ACCENT_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b"];
 const MAX_BANNER_BYTES = 2 * 1024 * 1024;
@@ -40,9 +39,7 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [memoryFiles, setMemoryFiles] = useState<Map<string, File> | null>(null);
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [fileCount, setFileCount] = useState(0);
-  const [persistOffline, setPersistOffline] = useState(true);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const supported = isFsAccessSupported();
@@ -58,7 +55,6 @@ export function AddCourseDialog({ onAdded }: Props) {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
-    setPersistOffline(true); setProgress(null);
   };
 
   const pickFolder = async () => {
