@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ImagePlus, Trash2, X, FolderOpen, Loader2, Settings2 } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
 import {
-  saveCourse, upsertFiles, putFileBlobs, deleteCourseBlobs, listFiles,
+  saveCourse, upsertFiles, deleteCourseBlobs, listFiles,
   type Course,
 } from "@/lib/db";
 import {
@@ -131,11 +131,9 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
       // Drop any stale cached blobs
       await deleteCourseBlobs(course.id);
     } else if (pendingMemoryFiles) {
-      // Re-cache blobs (this preserves offline-availability if it was cached before)
-      const wasCached = course.source === "cached";
       updated = {
         ...updated,
-        source: wasCached ? "cached" : "memory",
+        source: "memory",
         handle: undefined,
         rootName: pendingRootName || course.rootName,
       };
@@ -146,16 +144,8 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
       const existing = await listFiles(course.id);
       const merged = mergeScanWithMeta(course.id, scanned, existing);
       await upsertFiles(merged);
-      if (wasCached) {
-        await deleteCourseBlobs(course.id);
-        const entries = merged.map((m) => ({
-          id: m.id, courseId: course.id, blob: pendingMemoryFiles.get(m.path)!,
-        })).filter((e) => e.blob);
-        const CHUNK = 25;
-        for (let i = 0; i < entries.length; i += CHUNK) {
-          await putFileBlobs(entries.slice(i, i + CHUNK));
-        }
-      }
+      // Drop any legacy cached blobs to free disk space.
+      await deleteCourseBlobs(course.id);
     }
 
     await saveCourse(updated);

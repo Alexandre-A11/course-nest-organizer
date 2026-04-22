@@ -14,13 +14,12 @@ import {
   getBrowserInfo, getKind,
 } from "@/lib/fs";
 import {
-  saveCourse, upsertFiles, putFileBlobs, type Course,
+  saveCourse, upsertFiles, type Course,
 } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
 
 const ACCENT_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b"];
 const MAX_BANNER_BYTES = 2 * 1024 * 1024;
@@ -40,9 +39,7 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [memoryFiles, setMemoryFiles] = useState<Map<string, File> | null>(null);
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [fileCount, setFileCount] = useState(0);
-  const [persistOffline, setPersistOffline] = useState(true);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const supported = isFsAccessSupported();
@@ -58,7 +55,6 @@ export function AddCourseDialog({ onAdded }: Props) {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
-    setPersistOffline(true); setProgress(null);
   };
 
   const pickFolder = async () => {
@@ -136,12 +132,11 @@ export function AddCourseDialog({ onAdded }: Props) {
       await upsertFiles(metas);
       scannedCount = metas.length;
     } else if (memoryFiles) {
-      const useCache = persistOffline;
       const course: Course = {
         id, name: name.trim(),
         description: description.trim() || undefined,
         createdAt: Date.now(),
-        source: useCache ? "cached" : "memory",
+        source: "memory",
         rootName, color,
         category: category || undefined,
         banner,
@@ -155,33 +150,8 @@ export function AddCourseDialog({ onAdded }: Props) {
       const metas = mergeScanWithMeta(id, scanned, []);
       await upsertFiles(metas);
       scannedCount = metas.length;
-
-      if (useCache) {
-        // Persist blobs to IndexedDB so the user doesn't need to re-pick.
-        const entries = metas.map((m) => ({
-          id: m.id,
-          courseId: id,
-          blob: memoryFiles.get(m.path)!,
-        })).filter((e) => e.blob);
-        // Chunk to keep transactions reasonable.
-        const CHUNK = 25;
-        setProgress({ current: 0, total: entries.length });
-        for (let i = 0; i < entries.length; i += CHUNK) {
-          const slice = entries.slice(i, i + CHUNK);
-          try {
-            await putFileBlobs(slice);
-          } catch (e) {
-            toast.error("Espaço de armazenamento esgotado — modo offline desativado.");
-            // Downgrade to memory mode
-            await saveCourse({ ...course, source: "memory" });
-            break;
-          }
-          setProgress({ current: Math.min(i + CHUNK, entries.length), total: entries.length });
-        }
-      }
     }
 
-    setProgress(null);
     setScanning(false);
     setOpen(false);
     reset();
@@ -209,8 +179,8 @@ export function AddCourseDialog({ onAdded }: Props) {
           <div className="flex gap-3 rounded-xl border border-primary/20 bg-primary-soft/40 p-3 text-sm text-foreground">
             <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
             <p>
-              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível.
-              Ative <strong>“Manter offline”</strong> abaixo para não precisar reselecionar a pasta a cada sessão.
+              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível: a cada sessão você
+              reabre a pasta uma vez (instantâneo). Suas notas e progresso ficam salvos sempre.
             </p>
           </div>
         )}
@@ -272,11 +242,9 @@ export function AddCourseDialog({ onAdded }: Props) {
                 <>
                   <p className="truncate text-sm font-medium text-foreground">{handle?.name ?? rootName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {scanning && progress
-                      ? `Salvando offline ${progress.current}/${progress.total}...`
-                      : scanning
-                        ? "Escaneando..."
-                        : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
+                    {scanning
+                      ? "Escaneando..."
+                      : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
                   </p>
                 </>
               ) : (
@@ -289,24 +257,10 @@ export function AddCourseDialog({ onAdded }: Props) {
             {scanning && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </button>
 
-          {/* Persist offline toggle (only relevant for fallback/memory mode) */}
           {memoryFiles && (
-            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
-              <Switch
-                id="persist-offline"
-                checked={persistOffline}
-                onCheckedChange={setPersistOffline}
-              />
-              <div className="flex-1">
-                <Label htmlFor="persist-offline" className="cursor-pointer text-sm">
-                  Manter disponível offline
-                </Label>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Salva os arquivos no navegador (IndexedDB) — você não precisa reselecionar a pasta a cada sessão.
-                  Ocupa espaço em disco.
-                </p>
-              </div>
-            </div>
+            <p className="px-1 text-xs text-muted-foreground">
+              Apenas referências leves serão salvas. A cada sessão você reabre a pasta uma vez (rápido) — nada é copiado para o navegador.
+            </p>
           )}
         </div>
 
