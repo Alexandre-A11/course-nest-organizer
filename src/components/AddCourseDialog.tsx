@@ -179,8 +179,8 @@ export function AddCourseDialog({ onAdded }: Props) {
           <div className="flex gap-3 rounded-xl border border-primary/20 bg-primary-soft/40 p-3 text-sm text-foreground">
             <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
             <p>
-              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível.
-              Ative <strong>“Manter offline”</strong> abaixo para não precisar reselecionar a pasta a cada sessão.
+              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível: a cada sessão você
+              reabre a pasta uma vez (instantâneo). Suas notas e progresso ficam salvos sempre.
             </p>
           </div>
         )}
