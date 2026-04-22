@@ -132,12 +132,11 @@ export function AddCourseDialog({ onAdded }: Props) {
       await upsertFiles(metas);
       scannedCount = metas.length;
     } else if (memoryFiles) {
-      const useCache = persistOffline;
       const course: Course = {
         id, name: name.trim(),
         description: description.trim() || undefined,
         createdAt: Date.now(),
-        source: useCache ? "cached" : "memory",
+        source: "memory",
         rootName, color,
         category: category || undefined,
         banner,
@@ -151,33 +150,8 @@ export function AddCourseDialog({ onAdded }: Props) {
       const metas = mergeScanWithMeta(id, scanned, []);
       await upsertFiles(metas);
       scannedCount = metas.length;
-
-      if (useCache) {
-        // Persist blobs to IndexedDB so the user doesn't need to re-pick.
-        const entries = metas.map((m) => ({
-          id: m.id,
-          courseId: id,
-          blob: memoryFiles.get(m.path)!,
-        })).filter((e) => e.blob);
-        // Chunk to keep transactions reasonable.
-        const CHUNK = 25;
-        setProgress({ current: 0, total: entries.length });
-        for (let i = 0; i < entries.length; i += CHUNK) {
-          const slice = entries.slice(i, i + CHUNK);
-          try {
-            await putFileBlobs(slice);
-          } catch (e) {
-            toast.error("Espaço de armazenamento esgotado — modo offline desativado.");
-            // Downgrade to memory mode
-            await saveCourse({ ...course, source: "memory" });
-            break;
-          }
-          setProgress({ current: Math.min(i + CHUNK, entries.length), total: entries.length });
-        }
-      }
     }
 
-    setProgress(null);
     setScanning(false);
     setOpen(false);
     reset();
