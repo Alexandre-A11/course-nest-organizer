@@ -242,11 +242,9 @@ export function AddCourseDialog({ onAdded }: Props) {
                 <>
                   <p className="truncate text-sm font-medium text-foreground">{handle?.name ?? rootName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {scanning && progress
-                      ? `Salvando offline ${progress.current}/${progress.total}...`
-                      : scanning
-                        ? "Escaneando..."
-                        : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
+                    {scanning
+                      ? "Escaneando..."
+                      : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
                   </p>
                 </>
               ) : (
@@ -259,24 +257,10 @@ export function AddCourseDialog({ onAdded }: Props) {
             {scanning && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
           </button>
 
-          {/* Persist offline toggle (only relevant for fallback/memory mode) */}
           {memoryFiles && (
-            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
-              <Switch
-                id="persist-offline"
-                checked={persistOffline}
-                onCheckedChange={setPersistOffline}
-              />
-              <div className="flex-1">
-                <Label htmlFor="persist-offline" className="cursor-pointer text-sm">
-                  Manter disponível offline
-                </Label>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Salva os arquivos no navegador (IndexedDB) — você não precisa reselecionar a pasta a cada sessão.
-                  Ocupa espaço em disco.
-                </p>
-              </div>
-            </div>
+            <p className="px-1 text-xs text-muted-foreground">
+              Apenas referências leves serão salvas. A cada sessão você reabre a pasta uma vez (rápido) — nada é copiado para o navegador.
+            </p>
           )}
         </div>
 
