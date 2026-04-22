@@ -145,7 +145,16 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     const updated = { ...file, watched: !file.watched, watchedAt: !file.watched ? Date.now() : undefined };
     await upsertFile(updated);
     onUpdated(updated);
-    toast.success(updated.watched ? "Marcado como assistido" : "Desmarcado");
+    if (updated.watched) {
+      const msg =
+        file.kind === "video" ? "Marcado como assistido"
+        : file.kind === "audio" ? "Marcado como ouvido"
+        : (file.kind === "pdf" || file.kind === "doc") ? "Marcado como lido"
+        : "Marcado como concluído";
+      toast.success(msg);
+    } else {
+      toast.success("Desmarcado");
+    }
   };
 
   const handleCommentChange = (val: string) => {
@@ -229,6 +238,17 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const tokens = useMemo(() => parseTimestamps(stripHtml(comment)), [comment]);
   const isMedia = file.kind === "video" || file.kind === "audio";
   const showNotes = notesVisible === "on";
+
+  // Label for the "watched" toggle depends on the file kind. PDFs/docs are
+  // "read", media is "watched", anything else is generically "completed".
+  const watchedLabels = (() => {
+    if (file.kind === "video") return { done: "Assistido", todo: "Marcar assistido" };
+    if (file.kind === "audio") return { done: "Ouvido", todo: "Marcar ouvido" };
+    if (file.kind === "pdf" || file.kind === "doc") {
+      return { done: "Lido", todo: "Marcar como lido" };
+    }
+    return { done: "Concluído", todo: "Marcar concluído" };
+  })();
 
   const handleExport = (format: ExportFormat) => {
     exportNotes(format, {
@@ -327,7 +347,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               className={cn("h-8 rounded-xl gap-1.5 px-2.5", file.watched && "bg-success hover:bg-success/90 text-success-foreground")}
             >
               {file.watched ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{file.watched ? "Assistido" : "Marcar assistido"}</span>
+              <span className="hidden sm:inline">{file.watched ? watchedLabels.done : watchedLabels.todo}</span>
             </Button>
           </div>
         </div>

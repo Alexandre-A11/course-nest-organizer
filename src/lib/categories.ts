@@ -11,7 +11,7 @@ export interface Category {
   icon: LucideIcon;
   /** Tailwind text color class for the icon. */
   color: string;
-  /** True for built-in categories that cannot be removed. */
+  /** True for built-in categories shipped by default. They can still be removed. */
   builtin?: boolean;
 }
 
@@ -49,6 +49,7 @@ export const CATEGORY_COLORS: { name: string; value: string }[] = [
 ];
 
 const STORAGE_KEY = "course-vault.customCategories";
+const REMOVED_BUILTIN_KEY = "course-vault.removedBuiltinCategories";
 
 interface StoredCategory {
   id: string;
@@ -82,13 +83,32 @@ function saveCustom(cats: Category[]) {
   try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored)); } catch { /* ignore */ }
 }
 
+function loadRemovedBuiltins(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(REMOVED_BUILTIN_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as string[];
+    return new Set(arr);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveRemovedBuiltins(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(REMOVED_BUILTIN_KEY, JSON.stringify([...ids])); } catch { /* ignore */ }
+}
+
 let _custom: Category[] = loadCustom();
+let _removedBuiltins: Set<string> = loadRemovedBuiltins();
 const listeners = new Set<() => void>();
 
 function notify() { listeners.forEach((l) => l()); }
 
 export function getAllCategories(): Category[] {
-  return [...BUILTIN_CATEGORIES, ..._custom];
+  const builtins = BUILTIN_CATEGORIES.filter((c) => !_removedBuiltins.has(c.id));
+  return [...builtins, ..._custom];
 }
 
 export function getCustomCategories(): Category[] {
@@ -106,9 +126,29 @@ export function addCustomCategory(input: { name: string; iconName: string; color
 }
 
 export function removeCustomCategory(id: string) {
-  _custom = _custom.filter((c) => c.id !== id);
-  saveCustom(_custom);
+  // Built-in categories are tracked separately (so re-installing the app keeps
+  // the user's choice). Custom ones live in their own list.
+  if (BUILTIN_CATEGORIES.some((c) => c.id === id)) {
+    _removedBuiltins = new Set([..._removedBuiltins, id]);
+    saveRemovedBuiltins(_removedBuiltins);
+  } else {
+    _custom = _custom.filter((c) => c.id !== id);
+    saveCustom(_custom);
+  }
   notify();
+}
+
+/** Restore a built-in category that was previously removed. */
+export function restoreBuiltinCategory(id: string) {
+  if (!_removedBuiltins.has(id)) return;
+  _removedBuiltins = new Set([..._removedBuiltins].filter((x) => x !== id));
+  saveRemovedBuiltins(_removedBuiltins);
+  notify();
+}
+
+/** List of built-in categories that the user has removed. */
+export function getRemovedBuiltins(): Category[] {
+  return BUILTIN_CATEGORIES.filter((c) => _removedBuiltins.has(c.id));
 }
 
 export function subscribeCategories(cb: () => void): () => void {
