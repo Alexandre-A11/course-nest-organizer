@@ -508,15 +508,71 @@ function ViewerContent({
     );
   }
 
+  // Inline preview for text-like and HTML files
+  const ext = file.name.toLowerCase().split(".").pop() ?? "";
+  const HTML_EXTS = ["html", "htm"];
+  const TEXT_EXTS = ["txt", "md", "markdown", "json", "csv", "tsv", "log", "xml", "yml", "yaml", "rtf"];
+
+  if (HTML_EXTS.includes(ext)) {
+    return (
+      <iframe
+        src={url}
+        title={file.name}
+        sandbox="allow-same-origin"
+        className="h-full w-full border-0 bg-white"
+      />
+    );
+  }
+
+  if (TEXT_EXTS.includes(ext)) {
+    return <TextPreview url={url} name={file.name} />;
+  }
+
   const Icon = file.kind === "doc" ? FileText : FileIcon;
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
       <Icon className="h-16 w-16 text-muted-foreground" strokeWidth={1.5} />
       <div>
         <p className="font-display text-base font-semibold text-foreground">Pré-visualização indisponível</p>
-        <p className="mt-1 text-sm text-muted-foreground">Use o botão "Baixar" para abrir esse arquivo.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Formatos do Office (.doc, .docx, .ppt, .pptx, .xls, .xlsx) não podem ser
+          renderizados no navegador. Use “Baixar” para abrir no aplicativo nativo.
+        </p>
       </div>
     </div>
+  );
+}
+
+function TextPreview({ url, name }: { url: string; name: string }) {
+  const [content, setContent] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setErr(null);
+    fetch(url)
+      .then((r) => r.text())
+      .then((t) => { if (active) { setContent(t); setLoading(false); } })
+      .catch((e) => { if (active) { setErr((e as Error).message); setLoading(false); } });
+    return () => { active = false; };
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (err) {
+    return <div className="p-6 text-sm text-destructive">{err}</div>;
+  }
+  return (
+    <pre className="h-full overflow-auto whitespace-pre-wrap break-words bg-card p-4 sm:p-6 font-mono text-[13px] leading-relaxed text-foreground">
+      {content || `(${name} está vazio)`}
+    </pre>
   );
 }
 
