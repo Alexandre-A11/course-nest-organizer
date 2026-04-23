@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { getCategory } from "@/lib/categories";
 import { useI18n, plural } from "@/lib/i18n";
+import { ensurePermission } from "@/lib/fs";
 
 export type CourseViewMode = "grid" | "list" | "compact";
 
@@ -25,6 +26,14 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
   const category = getCategory(course.category);
   const CatIcon = category?.icon;
   const hasContinue = !!course.lastFileId && files.some((f) => f.id === course.lastFileId);
+
+  // Pre-grant FSA permission while we still have the user gesture from the
+  // click. Avoids the extra "Authorize folder" screen on the course page.
+  const handleClick = () => {
+    if (course.source === "handle" && course.handle) {
+      void ensurePermission(course.handle).catch(() => { /* ignore */ });
+    }
+  };
 
   if (view === "list") {
     return (
