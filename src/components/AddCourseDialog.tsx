@@ -11,8 +11,7 @@ import {
   Settings2,
 } from "lucide-react";
 import {
-  isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta,
-  getBrowserInfo, getKind,
+  isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
 } from "@/lib/fs";
 import {
   saveCourse, upsertFiles, type Course,
@@ -48,7 +47,6 @@ export function AddCourseDialog({ onAdded }: Props) {
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const supported = isFsAccessSupported();
-  const browser = getBrowserInfo();
   const cats = useCategories();
 
   useEffect(() => {
