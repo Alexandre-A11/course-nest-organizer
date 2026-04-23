@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil } from "lucide-react";
+import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play } from "lucide-react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { getCategory } from "@/lib/categories";
+import { useI18n, plural } from "@/lib/i18n";
 
 export type CourseViewMode = "grid" | "list" | "compact";
 
@@ -16,12 +17,14 @@ interface Props {
 }
 
 export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: Props) {
+  const { t, lang } = useI18n();
   const videos = files.filter((f) => f.kind === "video");
   const pdfs = files.filter((f) => f.kind === "pdf");
   const watched = videos.filter((v) => v.watched).length;
   const progress = videos.length ? Math.round((watched / videos.length) * 100) : 0;
   const category = getCategory(course.category);
   const CatIcon = category?.icon;
+  const hasContinue = !!course.lastFileId && files.some((f) => f.id === course.lastFileId);
 
   if (view === "list") {
     return (
@@ -60,12 +63,12 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
             <span className="inline-flex items-center gap-1"><PlayCircle className="h-3 w-3" /> {videos.length}</span>
             <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> {pdfs.length}</span>
             <span>•</span>
-            <span>{files.length} arquivo{files.length !== 1 ? "s" : ""}</span>
+            <span>{files.length} {t("card.files", { plural: plural(files.length, lang) })}</span>
           </div>
         </div>
         <div className="hidden w-44 shrink-0 sm:block">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">Progresso</span>
+            <span className="text-muted-foreground">{t("card.progress")}</span>
             <span className="font-display font-semibold text-foreground">{progress}%</span>
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -161,7 +164,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
               {onEdit && (
                 <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit(); }}>
                   <Pencil className="mr-2 h-4 w-4" />
-                  Editar curso
+                  {t("btn.edit")}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
@@ -169,7 +172,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
                 className="text-destructive focus:text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Remover curso
+                {t("btn.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -189,17 +192,17 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <PlayCircle className="h-3.5 w-3.5" />
-            {videos.length} vídeo{videos.length !== 1 ? "s" : ""}
+            {videos.length} {t("card.videos", { plural: plural(videos.length, lang) })}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" />
-            {pdfs.length} PDF{pdfs.length !== 1 ? "s" : ""}
+            {pdfs.length} {t("card.pdfs", { plural: plural(pdfs.length, lang) })}
           </span>
         </div>
 
         <div className="mt-auto space-y-1.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-muted-foreground">Progresso</span>
+            <span className="font-medium text-muted-foreground">{t("card.progress")}</span>
             <span className="font-display font-semibold text-foreground">{progress}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
@@ -208,6 +211,13 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
               style={{ width: `${progress}%` }}
             />
           </div>
+          {hasContinue && (
+            <div className="pt-1">
+              <span className="inline-flex items-center gap-1 rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+                <Play className="h-2.5 w-2.5 fill-current" /> {t("card.continue")}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </Link>
@@ -215,6 +225,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
 }
 
 function RowActions({ onDelete, onEdit, compact = false }: { onDelete: () => void; onEdit?: () => void; compact?: boolean }) {
+  const { t } = useI18n();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
@@ -229,7 +240,7 @@ function RowActions({ onDelete, onEdit, compact = false }: { onDelete: () => voi
         {onEdit && (
           <DropdownMenuItem onClick={(e) => { e.preventDefault(); onEdit(); }}>
             <Pencil className="mr-2 h-4 w-4" />
-            Editar curso
+            {t("btn.edit")}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem
@@ -237,7 +248,7 @@ function RowActions({ onDelete, onEdit, compact = false }: { onDelete: () => voi
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          Remover curso
+          {t("btn.delete")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
