@@ -8,14 +8,16 @@ import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/hooks/use-categories";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
-import { isFsAccessSupported } from "@/lib/fs";
+import { isFsAccessSupported, ensurePermission } from "@/lib/fs";
 import { hasCourseFiles } from "@/lib/sessionFiles";
-import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, AlertTriangle, Settings2 } from "lucide-react";
+import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, AlertTriangle, Settings2, Play, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
 import { usePref } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
+import { useI18n, relativeTime, plural } from "@/lib/i18n";
+import { Link } from "@tanstack/react-router";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -32,6 +34,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const { t, lang } = useI18n();
   const [courses, setCourses] = useState<Course[]>([]);
   const [filesByCourse, setFilesByCourse] = useState<Record<string, CourseFileMeta[]>>({});
   const [loading, setLoading] = useState(true);
@@ -40,6 +43,7 @@ function Home() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [view, setView] = usePref<CourseViewMode>("home.view", "grid");
   const [manageCats, setManageCats] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
 
   const load = useCallback(async () => {
@@ -58,7 +62,7 @@ function Home() {
     if (!confirmDelete) return;
     await deleteCourse(confirmDelete.id);
     setConfirmDelete(null);
-    toast.success("Curso removido");
+    toast.success(t("delete.removed"));
     load();
   };
 
@@ -74,9 +78,45 @@ function Home() {
   const visibleCategories = cats.filter((c) => usedCategoryIds.has(c.id));
 
   // Detect courses whose folder is unavailable in this session.
-  const missingCourses = useMemo(() => {
-    return courses.filter((c) => c.source === "memory" && !hasCourseFiles(c.id));
+  // - "memory" (Firefox/Safari fallback): need user to re-pick the folder.
+  // - "handle" (Chromium FSA): permission may need to be re-granted; we'll
+  //   try to silently restore on user action via the banner button.
+  const missingMemory = useMemo(
+    () => courses.filter((c) => c.source === "memory" && !hasCourseFiles(c.id)),
+    [courses],
+  );
+  const handleCourses = useMemo(
+    () => courses.filter((c) => c.source === "handle" && c.handle),
+    [courses],
+  );
+
+  const restoreAllAccess = async () => {
+    setRestoring(true);
+    let granted = 0;
+    for (const c of handleCourses) {
+      if (!c.handle) continue;
+      try {
+        const ok = await ensurePermission(c.handle);
+        if (ok) granted++;
+      } catch { /* ignore */ }
+    }
+    setRestoring(false);
+    if (granted > 0) {
+      toast.success(`${granted}/${handleCourses.length} ✓`);
+    }
+  };
+
+  // "Continue where you left off" — most recently opened course.
+  const continueCourse = useMemo(() => {
+    return [...courses]
+      .filter((c) => c.lastFileId && c.lastAccessedAt)
+      .sort((a, b) => (b.lastAccessedAt ?? 0) - (a.lastAccessedAt ?? 0))[0];
   }, [courses]);
+  const continueFile = useMemo(() => {
+    if (!continueCourse) return null;
+    const list = filesByCourse[continueCourse.id] ?? [];
+    return list.find((f) => f.id === continueCourse.lastFileId) ?? null;
+  }, [continueCourse, filesByCourse]);
 
   const filteredCourses = useMemo(() => {
     if (!categoryFilter) return courses;
@@ -95,11 +135,11 @@ function Home() {
             <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  Meus cursos
+                  {t("home.title")}
                 </h1>
                 <p className="mt-1.5 text-sm text-muted-foreground">
-                  {filteredCourses.length} de {courses.length} curso{courses.length !== 1 ? "s" : ""}
-                  {categoryFilter && getCategory(categoryFilter) ? ` em ${getCategory(categoryFilter)!.name}` : ""}
+                  {t("home.countOf", { shown: filteredCourses.length, total: courses.length, plural: plural(courses.length, lang) })}
+                  {categoryFilter && getCategory(categoryFilter) ? ` ${t("home.in")} ${getCategory(categoryFilter)!.name}` : ""}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -109,35 +149,77 @@ function Home() {
                   onValueChange={(v) => v && setView(v as CourseViewMode)}
                   className="rounded-xl border border-border bg-card p-0.5"
                 >
-                  <ToggleGroupItem value="grid" size="sm" className="h-8 w-8 rounded-lg p-0" title="Grade">
+                  <ToggleGroupItem value="grid" size="sm" className="h-8 w-8 rounded-lg p-0" title={t("home.viewGrid")}>
                     <LayoutGrid className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="list" size="sm" className="h-8 w-8 rounded-lg p-0" title="Lista">
+                  <ToggleGroupItem value="list" size="sm" className="h-8 w-8 rounded-lg p-0" title={t("home.viewList")}>
                     <List className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="compact" size="sm" className="h-8 w-8 rounded-lg p-0" title="Compacto">
+                  <ToggleGroupItem value="compact" size="sm" className="h-8 w-8 rounded-lg p-0" title={t("home.viewCompact")}>
                     <Rows3 className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
                 </ToggleGroup>
-                <Button variant="outline" size="sm" onClick={() => setManageCats(true)} className="h-9 gap-1.5 rounded-xl" title="Gerenciar categorias">
+                <Button variant="outline" size="sm" onClick={() => setManageCats(true)} className="h-9 gap-1.5 rounded-xl" title={t("home.categories")}>
                   <Settings2 className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Categorias</span>
+                  <span className="hidden sm:inline">{t("home.categories")}</span>
                 </Button>
                 <AddCourseDialog onAdded={load} />
               </div>
             </div>
 
-            {missingCourses.length > 0 && (
+            {continueCourse && continueFile && (
+              <Link
+                to="/course/$courseId"
+                params={{ courseId: continueCourse.id }}
+                className="mb-5 group flex items-center gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary-soft/60 via-primary-soft/30 to-transparent p-4 transition-all hover:border-primary/50 hover:shadow-elevated"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elevated">
+                  <Play className="h-5 w-5 fill-current" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                    {t("home.continueTitle")}
+                  </p>
+                  <p className="truncate font-display text-sm font-semibold text-foreground sm:text-base">
+                    {continueCourse.name} — <span className="font-normal text-muted-foreground">{continueFile.name}</span>
+                  </p>
+                  {continueCourse.lastAccessedAt && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {t("home.lastSeen", { when: relativeTime(continueCourse.lastAccessedAt, t) })}
+                    </p>
+                  )}
+                </div>
+                <Button size="sm" className="hidden h-9 shrink-0 gap-1.5 rounded-xl shadow-elevated sm:inline-flex">
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  {t("home.continueAction")}
+                </Button>
+              </Link>
+            )}
+
+            {missingMemory.length > 0 && (
               <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <div className="flex-1">
                   <p className="font-medium text-foreground">
-                    {missingCourses.length} curso{missingCourses.length !== 1 ? "s precisam" : " precisa"} que você reabra a pasta
+                    {t("home.missingFolder", {
+                      count: missingMemory.length,
+                      plural: plural(missingMemory.length, lang),
+                      verb: lang === "pt" ? (missingMemory.length !== 1 ? "precisam" : "precisa") : (missingMemory.length !== 1 ? "need" : "needs"),
+                    })}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {missingCourses.map((c) => c.name).join(", ")}. Clique no curso para reselecionar a pasta, ou edite para ativar o modo offline.
+                    {missingMemory.map((c) => c.name).join(", ")}. {t("home.missingHint")}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {handleCourses.length > 0 && supported && (
+              <div className="mb-5 hidden">
+                <Button variant="outline" size="sm" onClick={restoreAllAccess} disabled={restoring} className="h-8 gap-1.5 rounded-xl text-xs">
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  {restoring ? "..." : "Restore folder access"}
+                </Button>
               </div>
             )}
 
