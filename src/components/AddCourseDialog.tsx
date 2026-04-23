@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
+  Settings2,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta,
@@ -18,6 +19,8 @@ import {
 } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
+import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +32,7 @@ interface Props {
 }
 
 export function AddCourseDialog({ onAdded }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -40,6 +44,7 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+  const [manageCats, setManageCats] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const supported = isFsAccessSupported();
@@ -74,7 +79,7 @@ export function AddCourseDialog({ onAdded }: Props) {
       setScanning(false);
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
-        toast.error("Não foi possível abrir a pasta");
+        toast.error(t("toast.openErr"));
       }
       setScanning(false);
     }
@@ -98,12 +103,12 @@ export function AddCourseDialog({ onAdded }: Props) {
     e.target.value = "";
     if (!f) return;
     if (f.size > MAX_BANNER_BYTES) {
-      toast.error("Imagem muito grande (máx. 2MB)");
+      toast.error(t("toast.imgTooBig"));
       return;
     }
     const reader = new FileReader();
     reader.onload = () => setBanner(typeof reader.result === "string" ? reader.result : undefined);
-    reader.onerror = () => toast.error("Não foi possível ler a imagem");
+    reader.onerror = () => toast.error(t("toast.imgErr"));
     reader.readAsDataURL(f);
   };
 
@@ -156,34 +161,31 @@ export function AddCourseDialog({ onAdded }: Props) {
     setOpen(false);
     reset();
     onAdded();
-    toast.success(`Curso "${name.trim()}" adicionado com ${scannedCount} arquivos`);
+    toast.success(t("toast.added", { name: name.trim(), n: scannedCount }));
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>
         <Button size="lg" className="gap-2 rounded-xl shadow-elevated">
           <FolderPlus className="h-4 w-4" />
-          Adicionar curso
+          {t("btn.add")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[560px] rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Novo curso</DialogTitle>
-          <DialogDescription>
-            Selecione a pasta do curso. Tudo fica no seu dispositivo.
-          </DialogDescription>
+          <DialogTitle className="font-display text-xl">{t("add.title")}</DialogTitle>
+          <DialogDescription>{t("add.subtitle")}</DialogDescription>
         </DialogHeader>
 
         {!supported && (
           <div className="flex gap-3 rounded-xl border border-primary/20 bg-primary-soft/40 p-3 text-sm text-foreground">
             <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-            <p>
-              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível: a cada sessão você
-              reabre a pasta uma vez (instantâneo). Suas notas e progresso ficam salvos sempre.
-            </p>
+            <p>{t("field.fsCompat")}</p>
           </div>
         )}
+        {supported && void browser}
 
         <input
           ref={fallbackInputRef}
