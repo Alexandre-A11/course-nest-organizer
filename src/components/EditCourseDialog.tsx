@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ImagePlus, Trash2, X, FolderOpen, Loader2, Settings2 } from "lucide-react";
+import { ImagePlus, Trash2, X, FolderOpen, Loader2, Settings2, RotateCcw, AlertTriangle } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
 import {
-  saveCourse, upsertFiles, deleteCourseBlobs, listFiles,
+  saveCourse, upsertFiles, deleteCourseBlobs, listFiles, resetCourseProgress,
   type Course,
 } from "@/lib/db";
 import {
@@ -17,6 +17,11 @@ import {
 } from "@/lib/fs";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +36,7 @@ interface Props {
 }
 
 export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -39,6 +45,9 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
   const [saving, setSaving] = useState(false);
   const [relinking, setRelinking] = useState(false);
   const [manageCats, setManageCats] = useState(false);
+  const [showDanger, setShowDanger] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderFallbackRef = useRef<HTMLInputElement>(null);
   const cats = useCategories();
@@ -61,6 +70,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
     setPendingMemoryFiles(null);
     setPendingRootName("");
     setPendingFileCount(0);
+    setShowDanger(false);
   }, [course, open]);
 
   const handleBannerPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,9 +160,23 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
 
     await saveCourse(updated);
     setSaving(false);
-    toast.success("Curso atualizado");
+    toast.success(t("toast.updated"));
     onSaved(updated);
     onOpenChange(false);
+  };
+
+  const doReset = async () => {
+    if (!course) return;
+    setResetting(true);
+    try {
+      await resetCourseProgress(course.id);
+      toast.success(t("reset.done"));
+      setConfirmReset(false);
+      onSaved({ ...course, lastFileId: undefined, lastAccessedAt: undefined });
+      onOpenChange(false);
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
