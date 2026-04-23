@@ -38,6 +38,10 @@ export interface Course {
   // Optional banner image stored as a data URL (kept inline so it survives
   // export/sync without separate blob storage).
   banner?: string;
+  // Last file the user opened in this course, used by the "Continue where
+  // you left off" feature on the home page.
+  lastFileId?: string;
+  lastAccessedAt?: number;
 }
 
 interface Schema extends DBSchema {

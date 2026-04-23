@@ -1,8 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { GraduationCap } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n";
 
 export function AppHeader() {
+  const { t } = useI18n();
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -26,8 +29,9 @@ export function AppHeader() {
             activeOptions={{ exact: true }}
             activeProps={{ className: "bg-secondary text-foreground" }}
           >
-            Meus cursos
+            {t("nav.myCourses")}
           </Link>
+          <LanguageToggle />
           <ThemeToggle />
         </nav>
       </div>
