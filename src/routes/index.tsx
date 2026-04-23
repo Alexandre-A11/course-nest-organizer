@@ -317,16 +317,15 @@ function Home() {
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-display">Remover curso?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">{t("delete.title")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso apaga "{confirmDelete?.name}" da biblioteca, junto com progresso e comentários.
-              Os arquivos no seu computador <strong>não serão tocados</strong>.
+              {t("delete.body", { name: confirmDelete?.name ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">{t("btn.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remover
+              {t("btn.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -336,6 +335,7 @@ function Home() {
 }
 
 function EmptyState({ supported, onAdded }: { supported: boolean; onAdded: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-soft sm:p-16">
       <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-gradient-hero opacity-10 blur-3xl" />
@@ -346,27 +346,24 @@ function EmptyState({ supported, onAdded }: { supported: boolean; onAdded: () =>
           <GraduationCap className="h-7 w-7" strokeWidth={2.2} />
         </div>
         <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Sua biblioteca de cursos,<br />
-          <span className="bg-gradient-hero bg-clip-text text-transparent">organizada de verdade.</span>
+          {t("empty.title")}<br />
+          <span className="bg-gradient-hero bg-clip-text text-transparent">{t("empty.titleAccent")}</span>
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-          Aponte para uma pasta no seu computador. O Course Vault lê os vídeos e PDFs,
-          guarda seu progresso, comentários e marca o que você já assistiu.
+          {t("empty.subtitle")}
         </p>
 
         <div className="mt-7">
           <AddCourseDialog onAdded={onAdded} />
           {!supported && (
-            <p className="mt-3 text-sm text-destructive">
-              ⚠ Use Chrome, Edge ou Brave atualizados para acessar pastas locais.
-            </p>
+            <p className="mt-3 text-sm text-destructive">{t("empty.unsupported")}</p>
           )}
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
-          <Feature icon={ShieldCheck} title="100% local" desc="Nada sai do seu PC. Sem nuvem, sem login." />
-          <Feature icon={Sparkles} title="Progresso visual" desc="Marca aulas assistidas e calcula o avanço." />
-          <Feature icon={Cpu} title="Tudo embutido" desc="Player de vídeo e leitor de PDF dentro do app." />
+          <Feature icon={ShieldCheck} title={t("feature.local.title")} desc={t("feature.local.desc")} />
+          <Feature icon={Sparkles} title={t("feature.progress.title")} desc={t("feature.progress.desc")} />
+          <Feature icon={Cpu} title={t("feature.player.title")} desc={t("feature.player.desc")} />
         </div>
       </div>
     </div>
