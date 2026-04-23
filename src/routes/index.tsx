@@ -85,26 +85,6 @@ function Home() {
     () => courses.filter((c) => c.source === "memory" && !hasCourseFiles(c.id)),
     [courses],
   );
-  const handleCourses = useMemo(
-    () => courses.filter((c) => c.source === "handle" && c.handle),
-    [courses],
-  );
-
-  const restoreAllAccess = async () => {
-    setRestoring(true);
-    let granted = 0;
-    for (const c of handleCourses) {
-      if (!c.handle) continue;
-      try {
-        const ok = await ensurePermission(c.handle);
-        if (ok) granted++;
-      } catch { /* ignore */ }
-    }
-    setRestoring(false);
-    if (granted > 0) {
-      toast.success(`${granted}/${handleCourses.length} ✓`);
-    }
-  };
 
   // "Continue where you left off" — most recently opened course.
   const continueCourse = useMemo(() => {
@@ -214,14 +194,6 @@ function Home() {
               </div>
             )}
 
-            {handleCourses.length > 0 && supported && (
-              <div className="mb-5 hidden">
-                <Button variant="outline" size="sm" onClick={restoreAllAccess} disabled={restoring} className="h-8 gap-1.5 rounded-xl text-xs">
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  {restoring ? "..." : "Restore folder access"}
-                </Button>
-              </div>
-            )}
 
             {visibleCategories.length > 0 && (
               <div className="mb-5 flex items-center gap-1.5 overflow-x-auto pb-1">
