@@ -8,16 +8,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
+  Settings2,
 } from "lucide-react";
 import {
-  isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta,
-  getBrowserInfo, getKind,
+  isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
 } from "@/lib/fs";
 import {
   saveCourse, upsertFiles, type Course,
 } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
+import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ interface Props {
 }
 
 export function AddCourseDialog({ onAdded }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -40,10 +43,10 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+  const [manageCats, setManageCats] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const supported = isFsAccessSupported();
-  const browser = getBrowserInfo();
   const cats = useCategories();
 
   useEffect(() => {
@@ -74,7 +77,7 @@ export function AddCourseDialog({ onAdded }: Props) {
       setScanning(false);
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
-        toast.error("Não foi possível abrir a pasta");
+        toast.error(t("toast.openErr"));
       }
       setScanning(false);
     }
@@ -98,12 +101,12 @@ export function AddCourseDialog({ onAdded }: Props) {
     e.target.value = "";
     if (!f) return;
     if (f.size > MAX_BANNER_BYTES) {
-      toast.error("Imagem muito grande (máx. 2MB)");
+      toast.error(t("toast.imgTooBig"));
       return;
     }
     const reader = new FileReader();
     reader.onload = () => setBanner(typeof reader.result === "string" ? reader.result : undefined);
-    reader.onerror = () => toast.error("Não foi possível ler a imagem");
+    reader.onerror = () => toast.error(t("toast.imgErr"));
     reader.readAsDataURL(f);
   };
 
@@ -156,32 +159,28 @@ export function AddCourseDialog({ onAdded }: Props) {
     setOpen(false);
     reset();
     onAdded();
-    toast.success(`Curso "${name.trim()}" adicionado com ${scannedCount} arquivos`);
+    toast.success(t("toast.added", { name: name.trim(), n: scannedCount }));
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>
         <Button size="lg" className="gap-2 rounded-xl shadow-elevated">
           <FolderPlus className="h-4 w-4" />
-          Adicionar curso
+          {t("btn.add")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[560px] rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Novo curso</DialogTitle>
-          <DialogDescription>
-            Selecione a pasta do curso. Tudo fica no seu dispositivo.
-          </DialogDescription>
+          <DialogTitle className="font-display text-xl">{t("add.title")}</DialogTitle>
+          <DialogDescription>{t("add.subtitle")}</DialogDescription>
         </DialogHeader>
 
         {!supported && (
           <div className="flex gap-3 rounded-xl border border-primary/20 bg-primary-soft/40 p-3 text-sm text-foreground">
             <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-            <p>
-              {browser.name === "Firefox" ? "Firefox" : "Seu navegador"} usa modo compatível: a cada sessão você
-              reabre a pasta uma vez (instantâneo). Suas notas e progresso ficam salvos sempre.
-            </p>
+            <p>{t("field.fsCompat")}</p>
           </div>
         )}
 
@@ -198,7 +197,7 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         {/* Banner */}
         <div className="space-y-2">
-          <Label>Banner (opcional)</Label>
+          <Label>{t("field.bannerOpt")}</Label>
           <div
             className="relative h-28 overflow-hidden rounded-xl border border-border"
             style={!banner ? {
@@ -215,7 +214,7 @@ export function AddCourseDialog({ onAdded }: Props) {
                 className="h-7 gap-1 rounded-lg text-xs"
               >
                 <ImagePlus className="h-3.5 w-3.5" />
-                {banner ? "Trocar" : "Adicionar imagem"}
+                {banner ? t("field.bannerChange") : t("field.bannerAdd")}
               </Button>
               {banner && (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setBanner(undefined)} className="h-7 gap-1 rounded-lg text-xs">
@@ -229,7 +228,7 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         {/* Folder */}
         <div className="space-y-2">
-          <Label>Pasta do curso</Label>
+          <Label>{t("field.folder")}</Label>
           <button
             type="button"
             onClick={pickFolder}
@@ -243,14 +242,14 @@ export function AddCourseDialog({ onAdded }: Props) {
                   <p className="truncate text-sm font-medium text-foreground">{handle?.name ?? rootName}</p>
                   <p className="text-xs text-muted-foreground">
                     {scanning
-                      ? "Escaneando..."
-                      : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
+                      ? t("field.scanning")
+                      : t("field.filesFound", { n: fileCount, plural: fileCount !== 1 ? "s" : "" })}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-foreground">Escolher pasta</p>
-                  <p className="text-xs text-muted-foreground">Clique para selecionar</p>
+                  <p className="text-sm font-medium text-foreground">{t("field.folderPick")}</p>
+                  <p className="text-xs text-muted-foreground">{t("field.folderPickHint")}</p>
                 </>
               )}
             </div>
@@ -258,27 +257,31 @@ export function AddCourseDialog({ onAdded }: Props) {
           </button>
 
           {memoryFiles && (
-            <p className="px-1 text-xs text-muted-foreground">
-              Apenas referências leves serão salvas. A cada sessão você reabre a pasta uma vez (rápido) — nada é copiado para o navegador.
-            </p>
+            <p className="px-1 text-xs text-muted-foreground">{t("field.fsHint")}</p>
           )}
         </div>
 
         {/* Name */}
         <div className="space-y-2">
-          <Label htmlFor="course-name">Nome do curso</Label>
-          <Input id="course-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: React Avançado" className="rounded-xl" />
+          <Label htmlFor="course-name">{t("field.name")}</Label>
+          <Input id="course-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("field.namePh")} className="rounded-xl" />
         </div>
 
         {/* Description */}
         <div className="space-y-2">
-          <Label htmlFor="course-desc">Descrição (opcional)</Label>
-          <Textarea id="course-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Anotações sobre o curso..." rows={2} className="rounded-xl resize-none" />
+          <Label htmlFor="course-desc">{t("field.desc")}</Label>
+          <Textarea id="course-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("field.descPh")} rows={2} className="rounded-xl resize-none" />
         </div>
 
         {/* Category */}
         <div className="space-y-2">
-          <Label>Categoria</Label>
+          <div className="flex items-center justify-between">
+            <Label>{t("field.category")}</Label>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setManageCats(true)} className="h-7 gap-1 rounded-lg px-2 text-xs">
+              <Settings2 className="h-3.5 w-3.5" />
+              {t("field.manage")}
+            </Button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -291,7 +294,7 @@ export function AddCourseDialog({ onAdded }: Props) {
               )}
             >
               <X className="h-3.5 w-3.5" />
-              Nenhuma
+              {t("field.categoryNone")}
             </button>
             {cats.map((cat) => {
               const Icon = cat.icon;
@@ -318,7 +321,7 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         {/* Color */}
         <div className="space-y-2">
-          <Label>Cor de destaque</Label>
+          <Label>{t("field.color")}</Label>
           <div className="flex flex-wrap gap-1.5">
             {ACCENT_COLORS.map((c) => (
               <button
@@ -338,14 +341,16 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">
-            Cancelar
+            {t("btn.cancel")}
           </Button>
           <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar curso
+            {t("btn.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ManageCategoriesDialog open={manageCats} onOpenChange={setManageCats} />
+    </>
   );
 }

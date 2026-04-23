@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ImagePlus, Trash2, X, FolderOpen, Loader2, Settings2 } from "lucide-react";
+import { ImagePlus, Trash2, X, FolderOpen, Loader2, Settings2, RotateCcw, AlertTriangle } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
 import {
-  saveCourse, upsertFiles, deleteCourseBlobs, listFiles,
+  saveCourse, upsertFiles, deleteCourseBlobs, listFiles, resetCourseProgress,
   type Course,
 } from "@/lib/db";
 import {
@@ -17,6 +17,11 @@ import {
 } from "@/lib/fs";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +36,7 @@ interface Props {
 }
 
 export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -39,6 +45,9 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
   const [saving, setSaving] = useState(false);
   const [relinking, setRelinking] = useState(false);
   const [manageCats, setManageCats] = useState(false);
+  const [showDanger, setShowDanger] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderFallbackRef = useRef<HTMLInputElement>(null);
   const cats = useCategories();
@@ -61,6 +70,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
     setPendingMemoryFiles(null);
     setPendingRootName("");
     setPendingFileCount(0);
+    setShowDanger(false);
   }, [course, open]);
 
   const handleBannerPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,9 +160,23 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
 
     await saveCourse(updated);
     setSaving(false);
-    toast.success("Curso atualizado");
+    toast.success(t("toast.updated"));
     onSaved(updated);
     onOpenChange(false);
+  };
+
+  const doReset = async () => {
+    if (!course) return;
+    setResetting(true);
+    try {
+      await resetCourseProgress(course.id);
+      toast.success(t("reset.done"));
+      setConfirmReset(false);
+      onSaved({ ...course, lastFileId: undefined, lastAccessedAt: undefined });
+      onOpenChange(false);
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -160,13 +184,13 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Editar curso</DialogTitle>
-          <DialogDescription>Personalize título, categoria, banner e pasta.</DialogDescription>
+          <DialogTitle className="font-display text-xl">{t("edit.title")}</DialogTitle>
+          <DialogDescription>{t("edit.subtitle")}</DialogDescription>
         </DialogHeader>
 
         {/* Banner */}
         <div className="space-y-2">
-          <Label>Banner</Label>
+          <Label>{t("field.banner")}</Label>
           <div
             className="relative h-32 overflow-hidden rounded-xl border border-border"
             style={!banner ? {
@@ -177,7 +201,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
             <div className="absolute inset-x-0 bottom-0 flex justify-end gap-1 p-2">
               <Button type="button" variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} className="h-7 gap-1 rounded-lg text-xs">
                 <ImagePlus className="h-3.5 w-3.5" />
-                {banner ? "Trocar" : "Adicionar imagem"}
+                {banner ? t("field.bannerChange") : t("field.bannerAdd")}
               </Button>
               {banner && (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setBanner(undefined)} className="h-7 gap-1 rounded-lg text-xs">
@@ -191,33 +215,33 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
 
         {/* Name */}
         <div className="space-y-2">
-          <Label htmlFor="edit-name">Nome do curso</Label>
+          <Label htmlFor="edit-name">{t("field.name")}</Label>
           <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl" />
         </div>
 
         {/* Description */}
         <div className="space-y-2">
-          <Label htmlFor="edit-desc">Descrição (opcional)</Label>
+          <Label htmlFor="edit-desc">{t("field.desc")}</Label>
           <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="rounded-xl resize-none" />
         </div>
 
         {/* Folder relink */}
         <div className="space-y-2">
-          <Label>Pasta do curso</Label>
+          <Label>{t("field.folder")}</Label>
           <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
             <p className="text-xs text-muted-foreground">
               {pendingHandle || pendingMemoryFiles
-                ? <span className="text-foreground"><strong>Nova pasta:</strong> {pendingHandle?.name ?? pendingRootName} — {pendingFileCount} arquivos</span>
-                : <>Atual: <strong className="text-foreground">{course?.handle?.name ?? course?.rootName ?? course?.name}</strong></>}
+                ? <span className="text-foreground"><strong>{t("field.folderNew")}</strong> {pendingHandle?.name ?? pendingRootName} — {pendingFileCount}</span>
+                : <>{t("field.folderCurrent")} <strong className="text-foreground">{course?.handle?.name ?? course?.rootName ?? course?.name}</strong></>}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={pickNewFolder} disabled={relinking} className="h-8 gap-1.5 rounded-lg text-xs">
                 {relinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderOpen className="h-3.5 w-3.5" />}
-                {pendingHandle || pendingMemoryFiles ? "Trocar novamente" : "Alterar pasta"}
+                {pendingHandle || pendingMemoryFiles ? t("field.folderChangeAgain") : t("field.folderChange")}
               </Button>
               {(pendingHandle || pendingMemoryFiles) && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => { setPendingHandle(null); setPendingMemoryFiles(null); setPendingFileCount(0); }} className="h-8 gap-1 rounded-lg text-xs">
-                  <X className="h-3.5 w-3.5" /> Cancelar troca
+                  <X className="h-3.5 w-3.5" /> {t("field.folderCancel")}
                 </Button>
               )}
             </div>
@@ -237,10 +261,10 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
         {/* Category */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>Categoria</Label>
+            <Label>{t("field.category")}</Label>
             <Button type="button" variant="ghost" size="sm" onClick={() => setManageCats(true)} className="h-7 gap-1 rounded-lg px-2 text-xs">
               <Settings2 className="h-3.5 w-3.5" />
-              Gerenciar
+              {t("field.manage")}
             </Button>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -255,7 +279,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
               )}
             >
               <X className="h-3.5 w-3.5" />
-              Nenhuma
+              {t("field.categoryNone")}
             </button>
             {cats.map((cat) => {
               const Icon = cat.icon;
@@ -282,7 +306,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
 
         {/* Color */}
         <div className="space-y-2">
-          <Label>Cor de destaque</Label>
+          <Label>{t("field.color")}</Label>
           <div className="flex flex-wrap gap-1.5">
             {ACCENT_COLORS.map((c) => (
               <button
@@ -300,18 +324,72 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
           </div>
         </div>
 
+        {/* Danger zone (collapsed) */}
+        <div className="border-t border-border/60 pt-3">
+          {!showDanger ? (
+            <button
+              type="button"
+              onClick={() => setShowDanger(true)}
+              className="text-xs text-muted-foreground/70 underline-offset-2 hover:text-destructive hover:underline"
+            >
+              {t("reset.section")} ↓
+            </button>
+          ) : (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <div className="flex-1 space-y-2">
+                  <p className="text-xs text-muted-foreground">{t("reset.hint")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmReset(true)}
+                    className="h-8 gap-1.5 rounded-lg border-destructive/40 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    {t("reset.button")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl">
-            Cancelar
+            {t("btn.cancel")}
           </Button>
           <Button onClick={submit} disabled={!name.trim() || saving} className="rounded-xl">
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar
+            {t("btn.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
     <ManageCategoriesDialog open={manageCats} onOpenChange={setManageCats} />
+
+    <AlertDialog open={confirmReset} onOpenChange={(o) => !o && setConfirmReset(false)}>
+      <AlertDialogContent className="rounded-2xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-display">{t("reset.title")}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("reset.body", { name: course?.name ?? "" })}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="rounded-xl">{t("btn.cancel")}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={doReset}
+            disabled={resetting}
+            className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {resetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("reset.confirm")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

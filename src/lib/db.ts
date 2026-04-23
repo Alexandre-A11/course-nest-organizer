@@ -38,6 +38,10 @@ export interface Course {
   // Optional banner image stored as a data URL (kept inline so it survives
   // export/sync without separate blob storage).
   banner?: string;
+  // Last file the user opened in this course, used by the "Continue where
+  // you left off" feature on the home page.
+  lastFileId?: string;
+  lastAccessedAt?: number;
 }
 
 interface Schema extends DBSchema {
@@ -171,4 +175,41 @@ export async function deleteCourseBlobs(courseId: string) {
     cursor = await cursor.continue();
   }
   await tx.done;
+}
+
+/**
+ * Wipe progress for a course: clears `watched`, `watchedAt`, `progress` and
+ * `comment` for every file. Files themselves are not removed from the index.
+ * Also clears the lastFileId pointer on the course.
+ */
+export async function resetCourseProgress(courseId: string) {
+  const db = await getDB();
+  const tx = db.transaction(["files", "courses"], "readwrite");
+  const filesStore = tx.objectStore("files");
+  const idx = filesStore.index("byCourse");
+  let cursor = await idx.openCursor(courseId);
+  while (cursor) {
+    const f = cursor.value as CourseFileMeta;
+    await cursor.update({
+      ...f,
+      watched: false,
+      watchedAt: undefined,
+      progress: undefined,
+      comment: undefined,
+    });
+    cursor = await cursor.continue();
+  }
+  const c = await tx.objectStore("courses").get(courseId);
+  if (c) {
+    await tx.objectStore("courses").put({ ...c, lastFileId: undefined, lastAccessedAt: undefined });
+  }
+  await tx.done;
+}
+
+/** Update the "last opened file" pointer on a course. */
+export async function touchCourseLastFile(courseId: string, fileId: string) {
+  const db = await getDB();
+  const c = await db.get("courses", courseId);
+  if (!c) return;
+  await db.put("courses", { ...c, lastFileId: fileId, lastAccessedAt: Date.now() });
 }
