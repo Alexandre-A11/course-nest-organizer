@@ -6,7 +6,7 @@ import { FileViewer } from "@/components/FileViewer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { getCourse, listFiles, upsertFiles, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
+import { getCourse, listFiles, upsertFiles, touchCourseLastFile, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
 import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
 import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
 import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil, HardDrive } from "lucide-react";
@@ -15,6 +15,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { usePref } from "@/lib/prefs";
 import { EditCourseDialog } from "@/components/EditCourseDialog";
 import { getCategory } from "@/lib/categories";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/course/$courseId")({
   component: CoursePage,
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/course/$courseId")({
 function CoursePage() {
   const { courseId } = Route.useParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [course, setCourse] = useState<Course | null>(null);
   const [files, setFiles] = useState<CourseFileMeta[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -75,6 +77,10 @@ function CoursePage() {
       }
       const fs = await listFiles(courseId);
       setFiles(fs);
+      // Auto-select last opened file if it still exists.
+      if (c.lastFileId && fs.some((f) => f.id === c.lastFileId)) {
+        setSelectedId(c.lastFileId);
+      }
       setLoading(false);
     })();
   }, [courseId, navigate]);
@@ -152,6 +158,13 @@ function CoursePage() {
 
   const selected = files.find((f) => f.id === selectedId) ?? null;
 
+  // Persist last-opened file whenever the user picks one.
+  useEffect(() => {
+    if (selectedId) {
+      void touchCourseLastFile(courseId, selectedId);
+    }
+  }, [selectedId, courseId]);
+
   const stats = useMemo(() => {
     const videos = files.filter((f) => f.kind === "video");
     const watched = videos.filter((v) => v.watched).length;
@@ -189,21 +202,12 @@ function CoursePage() {
               {isMemory ? <FolderOpen className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
             </div>
             <h2 className="font-display text-xl font-semibold text-foreground">
-              {isMemory ? "Reabrir pasta do curso" : "Permissão necessária"}
+              {isMemory ? t("course.reopenTitle") : t("course.permissionTitle")}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {isMemory ? (
-                <>
-                  Seu navegador precisa que você reselecione a pasta
-                  <strong className="text-foreground"> {course.rootName ?? course.name}</strong> a cada sessão.
-                  Seu progresso e comentários estão salvos.
-                </>
-              ) : (
-                <>
-                  Por segurança, o navegador precisa que você reautorize o acesso à pasta de
-                  <strong className="text-foreground"> {course.name}</strong> a cada sessão.
-                </>
-              )}
+              {isMemory
+                ? t("course.reopenBody", { name: course.rootName ?? course.name })
+                : t("course.permissionBody", { name: course.name })}
             </p>
             <input
               ref={fallbackInputRef}
@@ -216,12 +220,12 @@ function CoursePage() {
               onChange={handleReattachFolder}
             />
             <div className="mt-5 flex justify-center gap-2">
-              <Link to="/"><Button variant="outline" className="rounded-xl">Voltar</Button></Link>
+              <Link to="/"><Button variant="outline" className="rounded-xl">{t("btn.back")}</Button></Link>
               <Button
                 onClick={() => isMemory ? fallbackInputRef.current?.click() : requestPermission()}
                 className="rounded-xl"
               >
-                {isMemory ? "Selecionar pasta" : "Autorizar pasta"}
+                {isMemory ? t("course.selectFolder") : t("course.authorize")}
               </Button>
             </div>
           </div>
@@ -275,7 +279,7 @@ function CoursePage() {
             </div>
             <Button variant="outline" size="sm" onClick={rescan} disabled={rescanning} className="h-8 rounded-xl gap-1.5">
               <RefreshCw className={`h-3.5 w-3.5 ${rescanning ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Sincronizar</span>
+              <span className="hidden sm:inline">{t("course.sync")}</span>
             </Button>
           </div>
         </div>
@@ -291,7 +295,7 @@ function CoursePage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar arquivo..."
+                placeholder={t("course.search")}
                 className="rounded-xl pl-9 text-sm"
               />
             </div>
@@ -302,10 +306,10 @@ function CoursePage() {
                 onValueChange={(v) => v && setFilter(v as typeof filter)}
                 className="justify-start gap-1"
               >
-                <ToggleGroupItem value="all" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Todos</ToggleGroupItem>
-                <ToggleGroupItem value="video" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Vídeos</ToggleGroupItem>
-                <ToggleGroupItem value="pdf" size="sm" className="h-7 rounded-lg px-2.5 text-xs">PDFs</ToggleGroupItem>
-                <ToggleGroupItem value="unwatched" size="sm" className="h-7 rounded-lg px-2.5 text-xs">Pendentes</ToggleGroupItem>
+                <ToggleGroupItem value="all" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterAll")}</ToggleGroupItem>
+                <ToggleGroupItem value="video" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterVideos")}</ToggleGroupItem>
+                <ToggleGroupItem value="pdf" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterPdfs")}</ToggleGroupItem>
+                <ToggleGroupItem value="unwatched" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterPending")}</ToggleGroupItem>
               </ToggleGroup>
               <div className="flex items-center gap-1">
                 <Toggle
@@ -334,7 +338,7 @@ function CoursePage() {
           </div>
           <div className="flex-1 overflow-auto p-2">
             {filtered.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">Nenhum arquivo encontrado</p>
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t("course.noFiles")}</p>
             ) : (
               <FileTree
                 files={filtered}
@@ -369,10 +373,8 @@ function CoursePage() {
                 <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft text-primary">
                   <Search className="h-6 w-6" />
                 </div>
-                <h3 className="font-display text-lg font-semibold text-foreground">Selecione um arquivo</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Escolha um vídeo, PDF ou material na lista ao lado para começar.
-                </p>
+                <h3 className="font-display text-lg font-semibold text-foreground">{t("course.selectFile")}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{t("course.selectHint")}</p>
               </div>
             </div>
           )}
