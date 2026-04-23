@@ -8,7 +8,7 @@ import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/hooks/use-categories";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
-import { isFsAccessSupported } from "@/lib/fs";
+import { isFsAccessSupported, ensurePermission } from "@/lib/fs";
 import { hasCourseFiles } from "@/lib/sessionFiles";
 import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, AlertTriangle, Settings2, Play } from "lucide-react";
 import { toast } from "sonner";
@@ -151,6 +151,11 @@ function Home() {
               <Link
                 to="/course/$courseId"
                 params={{ courseId: continueCourse.id }}
+                onClick={() => {
+                  if (continueCourse.source === "handle" && continueCourse.handle) {
+                    void ensurePermission(continueCourse.handle).catch(() => {});
+                  }
+                }}
                 className="mb-5 group flex items-center gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary-soft/60 via-primary-soft/30 to-transparent p-4 transition-all hover:border-primary/50 hover:shadow-elevated"
               >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elevated">
