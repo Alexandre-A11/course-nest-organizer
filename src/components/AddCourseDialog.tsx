@@ -185,7 +185,6 @@ export function AddCourseDialog({ onAdded }: Props) {
             <p>{t("field.fsCompat")}</p>
           </div>
         )}
-        {supported && void browser}
 
         <input
           ref={fallbackInputRef}
@@ -200,7 +199,7 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         {/* Banner */}
         <div className="space-y-2">
-          <Label>Banner (opcional)</Label>
+          <Label>{t("field.bannerOpt")}</Label>
           <div
             className="relative h-28 overflow-hidden rounded-xl border border-border"
             style={!banner ? {
@@ -217,7 +216,7 @@ export function AddCourseDialog({ onAdded }: Props) {
                 className="h-7 gap-1 rounded-lg text-xs"
               >
                 <ImagePlus className="h-3.5 w-3.5" />
-                {banner ? "Trocar" : "Adicionar imagem"}
+                {banner ? t("field.bannerChange") : t("field.bannerAdd")}
               </Button>
               {banner && (
                 <Button type="button" variant="secondary" size="sm" onClick={() => setBanner(undefined)} className="h-7 gap-1 rounded-lg text-xs">
@@ -231,7 +230,7 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         {/* Folder */}
         <div className="space-y-2">
-          <Label>Pasta do curso</Label>
+          <Label>{t("field.folder")}</Label>
           <button
             type="button"
             onClick={pickFolder}
@@ -245,14 +244,14 @@ export function AddCourseDialog({ onAdded }: Props) {
                   <p className="truncate text-sm font-medium text-foreground">{handle?.name ?? rootName}</p>
                   <p className="text-xs text-muted-foreground">
                     {scanning
-                      ? "Escaneando..."
-                      : `${fileCount} arquivo${fileCount !== 1 ? "s" : ""} encontrado${fileCount !== 1 ? "s" : ""}`}
+                      ? t("field.scanning")
+                      : t("field.filesFound", { n: fileCount, plural: fileCount !== 1 ? "s" : "" })}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-foreground">Escolher pasta</p>
-                  <p className="text-xs text-muted-foreground">Clique para selecionar</p>
+                  <p className="text-sm font-medium text-foreground">{t("field.folderPick")}</p>
+                  <p className="text-xs text-muted-foreground">{t("field.folderPickHint")}</p>
                 </>
               )}
             </div>
@@ -260,27 +259,31 @@ export function AddCourseDialog({ onAdded }: Props) {
           </button>
 
           {memoryFiles && (
-            <p className="px-1 text-xs text-muted-foreground">
-              Apenas referências leves serão salvas. A cada sessão você reabre a pasta uma vez (rápido) — nada é copiado para o navegador.
-            </p>
+            <p className="px-1 text-xs text-muted-foreground">{t("field.fsHint")}</p>
           )}
         </div>
 
         {/* Name */}
         <div className="space-y-2">
-          <Label htmlFor="course-name">Nome do curso</Label>
-          <Input id="course-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: React Avançado" className="rounded-xl" />
+          <Label htmlFor="course-name">{t("field.name")}</Label>
+          <Input id="course-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("field.namePh")} className="rounded-xl" />
         </div>
 
         {/* Description */}
         <div className="space-y-2">
-          <Label htmlFor="course-desc">Descrição (opcional)</Label>
-          <Textarea id="course-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Anotações sobre o curso..." rows={2} className="rounded-xl resize-none" />
+          <Label htmlFor="course-desc">{t("field.desc")}</Label>
+          <Textarea id="course-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("field.descPh")} rows={2} className="rounded-xl resize-none" />
         </div>
 
         {/* Category */}
         <div className="space-y-2">
-          <Label>Categoria</Label>
+          <div className="flex items-center justify-between">
+            <Label>{t("field.category")}</Label>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setManageCats(true)} className="h-7 gap-1 rounded-lg px-2 text-xs">
+              <Settings2 className="h-3.5 w-3.5" />
+              {t("field.manage")}
+            </Button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
@@ -293,7 +296,7 @@ export function AddCourseDialog({ onAdded }: Props) {
               )}
             >
               <X className="h-3.5 w-3.5" />
-              Nenhuma
+              {t("field.categoryNone")}
             </button>
             {cats.map((cat) => {
               const Icon = cat.icon;
@@ -320,7 +323,7 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         {/* Color */}
         <div className="space-y-2">
-          <Label>Cor de destaque</Label>
+          <Label>{t("field.color")}</Label>
           <div className="flex flex-wrap gap-1.5">
             {ACCENT_COLORS.map((c) => (
               <button
@@ -340,14 +343,16 @@ export function AddCourseDialog({ onAdded }: Props) {
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">
-            Cancelar
+            {t("btn.cancel")}
           </Button>
           <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Criar curso
+            {t("btn.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ManageCategoriesDialog open={manageCats} onOpenChange={setManageCats} />
+    </>
   );
 }
