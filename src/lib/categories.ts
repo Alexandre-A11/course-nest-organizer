@@ -151,6 +151,38 @@ export function getRemovedBuiltins(): Category[] {
   return BUILTIN_CATEGORIES.filter((c) => _removedBuiltins.has(c.id));
 }
 
+/** Raw serialized form of custom categories (for backup export). */
+export function getCustomCategoriesRaw(): StoredCategory[] {
+  return _custom.map((c) => {
+    const iconName = Object.keys(CATEGORY_ICONS).find((k) => CATEGORY_ICONS[k] === c.icon) ?? "Sparkles";
+    return { id: c.id, name: c.name, iconName, color: c.color };
+  });
+}
+
+/** IDs of the built-in categories the user has removed. */
+export function getRemovedBuiltinIds(): string[] {
+  return [..._removedBuiltins];
+}
+
+/** Replace the local custom-categories list and removed-builtins set. */
+export function importCategoryState(payload: {
+  custom?: StoredCategory[];
+  removedBuiltins?: string[];
+}) {
+  if (Array.isArray(payload.custom)) {
+    _custom = payload.custom.map((s) => {
+      const icon = CATEGORY_ICONS[s.iconName] ?? Sparkles;
+      return { id: s.id, name: s.name, icon, color: s.color };
+    });
+    saveCustom(_custom);
+  }
+  if (Array.isArray(payload.removedBuiltins)) {
+    _removedBuiltins = new Set(payload.removedBuiltins);
+    saveRemovedBuiltins(_removedBuiltins);
+  }
+  notify();
+}
+
 export function subscribeCategories(cb: () => void): () => void {
   listeners.add(cb);
   return () => listeners.delete(cb);
