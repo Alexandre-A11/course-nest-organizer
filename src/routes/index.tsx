@@ -211,7 +211,7 @@ function Home() {
                       : "border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground",
                   )}
                 >
-                  Todas
+                  {t("home.all")}
                 </button>
                 {visibleCategories.map((cat) => {
                   const Icon = cat.icon;
