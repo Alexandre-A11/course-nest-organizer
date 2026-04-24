@@ -387,7 +387,7 @@ export function AddCourseDialog({ onAdded }: Props) {
           </Button>
           <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("btn.create")}
+            {scanning && progressMsg ? progressMsg : t("btn.create")}
           </Button>
         </DialogFooter>
       </DialogContent>
