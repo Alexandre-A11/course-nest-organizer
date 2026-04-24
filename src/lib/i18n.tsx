@@ -61,6 +61,14 @@ const PT: Dict = {
   "card.progress": "Progresso",
   "card.continue": "Continuar",
   "card.files": "arquivo{plural}",
+  "card.watchedVideo": "Assistido",
+  "card.markVideo": "Marcar assistido",
+  "card.watchedAudio": "Ouvido",
+  "card.markAudio": "Marcar ouvido",
+  "card.watchedDoc": "Lido",
+  "card.markDoc": "Marcar como lido",
+  "card.watchedOther": "Concluído",
+  "card.markOther": "Marcar concluído",
 
   // Course page
   "course.sync": "Sincronizar",
