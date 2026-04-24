@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
-  Settings2,
+  Settings2, HardDrive,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
 } from "@/lib/fs";
 import {
-  saveCourse, upsertFiles, type Course,
+  saveCourse, upsertFiles, putFileBlobs, type Course,
 } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
@@ -43,6 +44,9 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+  /** When true (only meaningful in non-FSA browsers), copy files into IDB. */
+  const [keepOffline, setKeepOffline] = useState(false);
+  const [progressMsg, setProgressMsg] = useState<string | null>(null);
   const [manageCats, setManageCats] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +61,7 @@ export function AddCourseDialog({ onAdded }: Props) {
   const reset = () => {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
+    setKeepOffline(false); setProgressMsg(null);
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
   };
 
@@ -135,17 +140,19 @@ export function AddCourseDialog({ onAdded }: Props) {
       await upsertFiles(metas);
       scannedCount = metas.length;
     } else if (memoryFiles) {
+      const useCache = keepOffline;
       const course: Course = {
         id, name: name.trim(),
         description: description.trim() || undefined,
         createdAt: Date.now(),
-        source: "memory",
+        source: useCache ? "cached" : "memory",
         rootName, color,
         category: category || undefined,
         banner,
       };
       await saveCourse(course);
-      // Always keep session map for instant access this session.
+      // Always keep session map for instant access this session (memory mode
+      // needs it; cached mode benefits from it as a same-session shortcut).
       setCourseFiles(id, memoryFiles);
       const scanned = Array.from(memoryFiles.entries()).map(([path, f]) => ({
         path, name: f.name, size: f.size, kind: getKind(f.name),
@@ -153,9 +160,25 @@ export function AddCourseDialog({ onAdded }: Props) {
       const metas = mergeScanWithMeta(id, scanned, []);
       await upsertFiles(metas);
       scannedCount = metas.length;
+
+      if (useCache) {
+        setProgressMsg(t("add.cacheCopying"));
+        // Persist blobs in chunks to keep transactions small.
+        const entries: { id: string; courseId: string; blob: Blob }[] = [];
+        for (const m of metas) {
+          const f = memoryFiles.get(m.path);
+          if (f) entries.push({ id: m.id, courseId: id, blob: f });
+        }
+        const CHUNK = 25;
+        for (let i = 0; i < entries.length; i += CHUNK) {
+          await putFileBlobs(entries.slice(i, i + CHUNK));
+        }
+        toast.success(t("add.cachedDone", { n: entries.length }));
+      }
     }
 
     setScanning(false);
+    setProgressMsg(null);
     setOpen(false);
     reset();
     onAdded();
@@ -259,6 +282,25 @@ export function AddCourseDialog({ onAdded }: Props) {
           {memoryFiles && (
             <p className="px-1 text-xs text-muted-foreground">{t("field.fsHint")}</p>
           )}
+
+          {memoryFiles && !supported && (
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
+              <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="keep-offline" className="cursor-pointer text-sm font-medium">
+                    {t("add.cacheToggle")}
+                  </Label>
+                  <Switch
+                    id="keep-offline"
+                    checked={keepOffline}
+                    onCheckedChange={setKeepOffline}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{t("add.cacheHint")}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Name */}
@@ -333,7 +375,7 @@ export function AddCourseDialog({ onAdded }: Props) {
                   color === c ? "ring-foreground scale-110" : "ring-transparent hover:scale-105",
                 )}
                 style={{ background: c }}
-                aria-label={`Cor ${c}`}
+                aria-label={t("field.colorAria", { c })}
               />
             ))}
           </div>
@@ -345,7 +387,7 @@ export function AddCourseDialog({ onAdded }: Props) {
           </Button>
           <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("btn.create")}
+            {scanning && progressMsg ? progressMsg : t("btn.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

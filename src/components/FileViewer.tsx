@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { Course, CourseFileMeta } from "@/lib/db";
-import { upsertFile } from "@/lib/db";
+import { upsertFile, saveFileProgress } from "@/lib/db";
 import { getFileFromCourse, formatBytes } from "@/lib/fs";
 import { getCourseFiles } from "@/lib/sessionFiles";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
+import { useI18n } from "@/lib/i18n";
 
 interface Props {
   course: Course;
@@ -34,6 +35,7 @@ const MIN_NOTES_WIDTH = 280;
 const MAX_NOTES_WIDTH = 720;
 
 export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
+  const { t } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,10 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const blobRef = useRef<File | null>(null);
   const commentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef(false);
+  /** Last persisted playback position (sec) — throttle disk writes. */
+  const lastSavedTimeRef = useRef<number>(-Infinity);
+  /** Resume target captured from file.progress when the file changes. */
+  const resumeAtRef = useRef<number | null>(null);
 
   const folderPath = file.path.includes("/") ? file.path.split("/").slice(0, -1).join("/") : "";
 
@@ -71,6 +77,11 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     let objectUrl: string | null = null;
     setLoading(true);
     setError(null);
+    // Capture resume target for this file BEFORE we start loading.
+    resumeAtRef.current = (file.kind === "video" || file.kind === "audio") && file.progress && file.progress > 1
+      ? file.progress
+      : null;
+    lastSavedTimeRef.current = -Infinity;
 
     (async () => {
       try {
@@ -84,8 +95,8 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
         setLoading(false);
       } catch (e) {
         if (!active) return;
-        const msg = (e as Error).message ?? "Erro ao abrir arquivo";
-        setError(msg.includes("permission") ? "Permissão de pasta expirada — recarregue a página e autorize de novo." : msg);
+        const msg = (e as Error).message ?? t("viewer.openErr");
+        setError(msg.includes("permission") ? t("viewer.permExpired") : msg);
         setLoading(false);
       }
     })();
@@ -94,7 +105,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [course, file.id, file.path]);
+  }, [course, file.id, file.path, file.kind, file.progress, t]);
 
   // Sync local comment state when file changes (separate from blob effect).
   useEffect(() => {
@@ -147,13 +158,13 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     onUpdated(updated);
     if (updated.watched) {
       const msg =
-        file.kind === "video" ? "Marcado como assistido"
-        : file.kind === "audio" ? "Marcado como ouvido"
-        : (file.kind === "pdf" || file.kind === "doc") ? "Marcado como lido"
-        : "Marcado como concluído";
+        file.kind === "video" ? t("toast.markedWatched")
+        : file.kind === "audio" ? t("toast.markedListened")
+        : (file.kind === "pdf" || file.kind === "doc") ? t("toast.markedRead")
+        : t("toast.markedDone");
       toast.success(msg);
     } else {
-      toast.success("Desmarcado");
+      toast.success(t("toast.unmarked"));
     }
   };
 
@@ -214,18 +225,20 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       await navigator.clipboard.writeText(full);
       setPathCopied(true);
       setTimeout(() => setPathCopied(false), 1400);
-      toast.success("Caminho copiado");
+      toast.success(t("toast.copied"));
     } catch {
-      toast.error("Não foi possível copiar");
+      toast.error(t("toast.copyErr"));
     }
   };
 
   const handleVideoEnded = async () => {
+    // Reset progress so "continue" doesn't keep landing at the end.
+    void saveFileProgress(file.id, 0);
     if (file.watched) return;
     const updated = { ...file, watched: true, watchedAt: Date.now() };
     await upsertFile(updated);
     onUpdated(updated);
-    toast.success("Aula concluída ✓");
+    toast.success(t("toast.lessonDone"));
   };
 
   const seekTo = (sec: number) => {
@@ -239,15 +252,14 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const isMedia = file.kind === "video" || file.kind === "audio";
   const showNotes = notesVisible === "on";
 
-  // Label for the "watched" toggle depends on the file kind. PDFs/docs are
-  // "read", media is "watched", anything else is generically "completed".
+  // Label for the "watched" toggle depends on the file kind.
   const watchedLabels = (() => {
-    if (file.kind === "video") return { done: "Assistido", todo: "Marcar assistido" };
-    if (file.kind === "audio") return { done: "Ouvido", todo: "Marcar ouvido" };
+    if (file.kind === "video") return { done: t("card.watchedVideo"), todo: t("card.markVideo") };
+    if (file.kind === "audio") return { done: t("card.watchedAudio"), todo: t("card.markAudio") };
     if (file.kind === "pdf" || file.kind === "doc") {
-      return { done: "Lido", todo: "Marcar como lido" };
+      return { done: t("card.watchedDoc"), todo: t("card.markDoc") };
     }
-    return { done: "Concluído", todo: "Marcar concluído" };
+    return { done: t("card.watchedOther"), todo: t("card.markOther") };
   })();
 
   const handleExport = (format: ExportFormat) => {
@@ -256,7 +268,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       title: file.name,
       html: comment,
     });
-    toast.success(`Notas exportadas (${format.toUpperCase()})`);
+    toast.success(t("toast.notesExported", { format: format.toUpperCase() }));
   };
 
   return (
@@ -272,7 +284,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               {folderPath && onLocateFolder && (
                 <button
                   onClick={() => onLocateFolder(folderPath)}
-                  title="Mostrar pasta na lista"
+                  title={t("viewer.folderShow")}
                   className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
                 >
                   <FolderTree className="h-3 w-3" />
@@ -280,7 +292,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               )}
               <button
                 onClick={copyPath}
-                title="Copiar caminho"
+                title={t("viewer.copyPath")}
                 className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
               >
                 {pathCopied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
@@ -299,10 +311,10 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                   size="sm"
                   onClick={togglePauseOnType}
                   className="h-8 rounded-xl gap-1.5 px-2.5"
-                  title={pauseOnType ? "Pausar enquanto digita: ATIVO" : "Pausar enquanto digita: desligado"}
+                  title={pauseOnType ? t("viewer.pauseOn") : t("viewer.pauseOff")}
                 >
                   {pauseOnType ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                  <span className="hidden lg:inline">{pauseOnType ? "Pausa ao digitar" : "Sem pausa"}</span>
+                  <span className="hidden lg:inline">{pauseOnType ? t("viewer.pauseLabelOn") : t("viewer.pauseLabelOff")}</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -331,14 +343,14 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               size="sm"
               onClick={() => setNotesVisible(showNotes ? "off" : "on")}
               className="h-8 rounded-xl gap-1.5 px-2.5"
-              title={showNotes ? "Ocultar anotações" : "Mostrar anotações"}
+              title={showNotes ? t("viewer.notesHide") : t("viewer.notesShow")}
             >
               {showNotes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{showNotes ? "Ocultar notas" : "Mostrar notas"}</span>
+              <span className="hidden sm:inline">{showNotes ? t("viewer.notesLabelHide") : t("viewer.notesLabelShow")}</span>
             </Button>
             <Button variant="outline" size="sm" onClick={downloadFile} disabled={!url} className="h-8 rounded-xl gap-1.5 px-2.5">
               <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Baixar</span>
+              <span className="hidden sm:inline">{t("viewer.download")}</span>
             </Button>
             <Button
               variant={file.watched ? "default" : "outline"}
@@ -371,6 +383,20 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               onVideoEnded={handleVideoEnded}
               mediaRef={mediaRef}
               initialSpeed={speed}
+            resumeAt={resumeAtRef.current}
+            onTimeUpdate={(sec) => {
+              if (file.kind !== "video" && file.kind !== "audio") return;
+              // Persist at most every 5s.
+              if (Math.abs(sec - lastSavedTimeRef.current) >= 5) {
+                lastSavedTimeRef.current = sec;
+                void saveFileProgress(file.id, sec);
+              }
+            }}
+            onPause={(sec) => {
+              if (file.kind !== "video" && file.kind !== "audio") return;
+              lastSavedTimeRef.current = sec;
+              void saveFileProgress(file.id, sec);
+            }}
             />
           )}
         </div>
@@ -388,7 +414,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
             onPointerUp={onDragEnd}
             onPointerCancel={onDragEnd}
             className="hidden md:flex w-1.5 cursor-col-resize select-none items-center justify-center bg-border/40 transition-colors hover:bg-primary/40"
-            title="Arraste para redimensionar"
+            title={t("viewer.dragResize")}
           >
             <div className="h-8 w-0.5 rounded-full bg-muted-foreground/40" />
           </div>
@@ -398,12 +424,12 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
           >
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 sm:px-6">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Anotações
+                {t("notes.title")}
                 {savingComment ? (
-                  <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">salvando…</span>
+                  <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">{t("notes.saving")}</span>
                 ) : savedFlash ? (
                   <span className="ml-1 flex items-center gap-1 text-[11px] font-normal normal-case tracking-normal text-success">
-                    <Check className="h-3 w-3" /> salvo
+                    <Check className="h-3 w-3" /> {t("notes.saved")}
                   </span>
                 ) : null}
               </div>
@@ -411,7 +437,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs">
                     <FileDown className="h-3.5 w-3.5" />
-                    Baixar
+                    {t("notes.export")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
@@ -429,9 +455,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                 onChange={handleCommentChange}
                 onFocus={handleEditorFocus}
                 onBlur={handleEditorBlur}
-                placeholder={isMedia
-                  ? "Suas notas sobre essa aula… use ‘Marcar tempo’ para inserir [mm:ss] clicáveis."
-                  : "Suas notas sobre esse material…"}
+                placeholder={isMedia ? t("notes.placeholderMedia") : t("notes.placeholderOther")}
                 onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
               />
               {isMedia && tokens.length > 0 && (
@@ -456,24 +480,43 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
 }
 
 function ViewerContent({
-  file, url, onVideoEnded, mediaRef, initialSpeed,
+  file, url, onVideoEnded, mediaRef, initialSpeed, resumeAt, onTimeUpdate, onPause,
 }: {
   file: CourseFileMeta;
   url: string;
   onVideoEnded: () => void;
   mediaRef: React.MutableRefObject<HTMLVideoElement | HTMLAudioElement | null>;
   initialSpeed: number;
+  resumeAt?: number | null;
+  onTimeUpdate?: (sec: number) => void;
+  onPause?: (sec: number) => void;
 }) {
+  const handleLoaded = (el: HTMLMediaElement | null) => {
+    if (!el) return;
+    el.playbackRate = initialSpeed;
+    if (resumeAt && resumeAt > 1 && Number.isFinite(resumeAt)) {
+      try { el.currentTime = resumeAt; } catch { /* ignore */ }
+    }
+  };
+  const onTU = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    onTimeUpdate?.(e.currentTarget.currentTime);
+  };
+  const onP = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    onPause?.(e.currentTarget.currentTime);
+  };
   if (file.kind === "video") {
     return (
       <div className="flex h-full items-center justify-center bg-black p-0 sm:p-6">
         <video
           key={url}
-          ref={(el) => { mediaRef.current = el; if (el) el.playbackRate = initialSpeed; }}
+          ref={(el) => { mediaRef.current = el; }}
           src={url}
           controls
           className="max-h-full max-w-full rounded-lg shadow-elevated"
           onEnded={onVideoEnded}
+          onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
+          onTimeUpdate={onTU}
+          onPause={onP}
         />
       </div>
     );
@@ -490,11 +533,14 @@ function ViewerContent({
           <FileAudio className="h-14 w-14" />
         </div>
         <audio
-          ref={(el) => { mediaRef.current = el; if (el) el.playbackRate = initialSpeed; }}
+          ref={(el) => { mediaRef.current = el; }}
           src={url}
           controls
           className="w-full max-w-md"
           onEnded={onVideoEnded}
+          onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
+          onTimeUpdate={onTU}
+          onPause={onP}
         />
       </div>
     );
@@ -533,17 +579,25 @@ function ViewerContent({
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
       <Icon className="h-16 w-16 text-muted-foreground" strokeWidth={1.5} />
       <div>
-        <p className="font-display text-base font-semibold text-foreground">Pré-visualização indisponível</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Formatos do Office (.doc, .docx, .ppt, .pptx, .xls, .xlsx) não podem ser
-          renderizados no navegador. Use “Baixar” para abrir no aplicativo nativo.
-        </p>
+        <PreviewUnavailable />
       </div>
     </div>
   );
 }
 
+function PreviewUnavailable() {
+  // Hook usage isolated so the parent stays a non-component helper.
+  const { t } = useI18n();
+  return (
+    <>
+      <p className="font-display text-base font-semibold text-foreground">{t("viewer.previewUnavail")}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t("viewer.previewOfficeMsg")}</p>
+    </>
+  );
+}
+
 function TextPreview({ url, name }: { url: string; name: string }) {
+  const { t } = useI18n();
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -571,7 +625,7 @@ function TextPreview({ url, name }: { url: string; name: string }) {
   }
   return (
     <pre className="h-full overflow-auto whitespace-pre-wrap break-words bg-card p-4 sm:p-6 font-mono text-[13px] leading-relaxed text-foreground">
-      {content || `(${name} está vazio)`}
+      {content || t("viewer.empty", { name })}
     </pre>
   );
 }

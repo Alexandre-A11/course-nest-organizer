@@ -78,12 +78,12 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
     e.target.value = "";
     if (!f) return;
     if (f.size > MAX_BANNER_BYTES) {
-      toast.error("Imagem muito grande (máx. 2MB)");
+      toast.error(t("toast.imgTooBig"));
       return;
     }
     const reader = new FileReader();
     reader.onload = () => setBanner(typeof reader.result === "string" ? reader.result : undefined);
-    reader.onerror = () => toast.error("Não foi possível ler a imagem");
+    reader.onerror = () => toast.error(t("toast.imgErr"));
     reader.readAsDataURL(f);
   };
 
@@ -102,7 +102,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
       setPendingFileCount(scanned.length);
       setRelinking(false);
     } catch (e) {
-      if ((e as Error).name !== "AbortError") toast.error("Não foi possível abrir a pasta");
+      if ((e as Error).name !== "AbortError") toast.error(t("toast.openErr"));
       setRelinking(false);
     }
   };
@@ -318,7 +318,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
                   color === c ? "ring-foreground scale-110" : "ring-transparent hover:scale-105",
                 )}
                 style={{ background: c }}
-                aria-label={`Cor ${c}`}
+                aria-label={t("field.colorAria", { c })}
               />
             ))}
           </div>
