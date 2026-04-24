@@ -95,7 +95,7 @@ function CoursePage() {
       setFiles(fs);
       setLoading(false);
     } else {
-      toast.error("Permissão negada");
+      toast.error(t("course.permDenied"));
     }
   };
 
@@ -104,7 +104,7 @@ function CoursePage() {
     if (!list || list.length === 0 || !course) return;
     const { fileMap, rootName } = scanFileList(list);
     if (course.rootName && rootName !== course.rootName) {
-      toast.warning(`Pasta esperada: "${course.rootName}". Você selecionou "${rootName}". Continuando mesmo assim.`);
+      toast.warning(t("course.expectedFolder", { expected: course.rootName, got: rootName }));
     }
     setCourseFiles(courseId, fileMap);
     setNeedsAccess(null);
@@ -128,7 +128,7 @@ function CoursePage() {
         const merged = mergeScanWithMeta(courseId, scanned, existing);
         await upsertFiles(merged);
         setFiles(merged);
-        toast.success(`${merged.length} arquivos sincronizados`);
+        toast.success(t("toast.synced", { n: merged.length }));
       } else {
         // Memory mode: rebuild from session cache
         const memFiles = (await import("@/lib/sessionFiles")).getCourseFiles(courseId);
@@ -140,7 +140,7 @@ function CoursePage() {
         const merged = mergeScanWithMeta(courseId, scanned, existing);
         await upsertFiles(merged);
         setFiles(merged);
-        toast.success(`${merged.length} arquivos sincronizados`);
+        toast.success(t("toast.synced", { n: merged.length }));
       }
     } finally {
       setRescanning(false);
@@ -258,7 +258,7 @@ function CoursePage() {
                 <h1 className="truncate font-display text-base font-semibold tracking-tight text-foreground sm:text-xl">{course?.name}</h1>
                 <button
                   onClick={() => setEditing(true)}
-                  title="Editar curso"
+                  title={t("course.editTitle")}
                   className="rounded p-1 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -317,8 +317,8 @@ function CoursePage() {
                   pressed={flatView === "on"}
                   onPressedChange={(p) => setFlatView(p ? "on" : "off")}
                   className="h-7 rounded-lg px-2"
-                  title={flatView === "on" ? "Mostrar pastas" : "Ocultar pastas (lista plana)"}
-                  aria-label="Alternar pastas"
+                  title={flatView === "on" ? t("course.foldersFlat") : t("course.foldersTree")}
+                  aria-label={t("course.toggleFolders")}
                 >
                   {flatView === "on" ? <ListTree className="h-3.5 w-3.5" /> : <FolderTree className="h-3.5 w-3.5" />}
                 </Toggle>
@@ -328,7 +328,7 @@ function CoursePage() {
                     size="sm"
                     onClick={() => setFocusFolder(null)}
                     className="h-7 gap-1 rounded-lg px-2 text-xs"
-                    title="Limpar foco"
+                    title={t("course.clearFocus")}
                   >
                     <X className="h-3 w-3" />
                   </Button>

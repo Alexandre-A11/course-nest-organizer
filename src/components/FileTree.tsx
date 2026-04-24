@@ -3,6 +3,7 @@ import { ChevronRight, Folder, FolderOpen, PlayCircle, FileText, FileAudio, File
 import type { CourseFileMeta, FileKind } from "@/lib/db";
 import { buildTree } from "@/lib/fs";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 const KIND_ICON: Record<FileKind, typeof FileIcon> = {
   video: PlayCircle,
@@ -78,10 +79,11 @@ export function FileTree({ files, selectedId, onSelect, flat = false, focusFolde
 }
 
 function FocusBanner({ folder, onClear }: { folder: string; onClear: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="mb-1.5 flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary-soft px-2.5 py-1.5">
       <div className="min-w-0 flex-1 truncate text-[11px] font-medium text-primary">
-        Mostrando apenas: <span className="font-semibold">{folder}</span>
+        {t("course.showingOnly")} <span className="font-semibold">{folder}</span>
       </div>
       <button onClick={onClear} className="rounded p-0.5 text-primary/70 hover:bg-primary/10 hover:text-primary">
         <X className="h-3 w-3" />
@@ -131,6 +133,7 @@ function TreeNode({
   onFocusFolder?: (folder: string | null) => void;
   highlightFolder: string | null;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(depth < 1);
   const isFolder = !node.file;
 
@@ -163,7 +166,7 @@ function TreeNode({
           {onFocusFolder && (
             <button
               onClick={(e) => { e.stopPropagation(); onFocusFolder(node.path); }}
-              title="Focar nessa pasta"
+              title={t("course.focusFolder")}
               className="rounded p-1 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground hover:bg-background hover:text-primary"
             >
               <FolderOpen className="h-3 w-3" />

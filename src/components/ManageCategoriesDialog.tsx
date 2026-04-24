@@ -12,6 +12,7 @@ import {
 } from "@/lib/categories";
 import { useCategories } from "@/hooks/use-categories";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
+  const { t } = useI18n();
   const cats = useCategories();
   const [name, setName] = useState("");
   const [iconName, setIconName] = useState<string>("Sparkles");
@@ -29,17 +31,17 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
     if (!name.trim()) return;
     addCustomCategory({ name, iconName, color });
     setName("");
-    toast.success("Categoria criada");
+    toast.success(t("toast.catCreated"));
   };
 
   const remove = (id: string, label: string) => {
     removeCustomCategory(id);
-    toast.success(`"${label}" removida`);
+    toast.success(t("toast.catRemoved", { name: label }));
   };
 
   const restore = (id: string, label: string) => {
     restoreBuiltinCategory(id);
-    toast.success(`"${label}" restaurada`);
+    toast.success(t("toast.catRestored", { name: label }));
   };
 
   const removedBuiltins = getRemovedBuiltins();
@@ -49,27 +51,27 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Gerenciar categorias</DialogTitle>
-          <DialogDescription>Crie e remova categorias personalizadas.</DialogDescription>
+          <DialogTitle className="font-display text-xl">{t("cat.dialogTitle")}</DialogTitle>
+          <DialogDescription>{t("cat.dialogSubtitle")}</DialogDescription>
         </DialogHeader>
 
         {/* Create */}
         <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Plus className="h-3.5 w-3.5" /> Nova categoria
+            <Plus className="h-3.5 w-3.5" /> {t("cat.new")}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cat-name" className="text-xs">Nome</Label>
+            <Label htmlFor="cat-name" className="text-xs">{t("cat.name")}</Label>
             <Input
               id="cat-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Marketing"
+              placeholder={t("cat.namePh")}
               className="rounded-xl"
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs">Ícone</Label>
+            <Label className="text-xs">{t("cat.icon")}</Label>
             <div className="flex flex-wrap gap-1.5">
               {Object.keys(CATEGORY_ICONS).map((key) => {
                 const Icon = CATEGORY_ICONS[key];
@@ -94,7 +96,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-xs">Cor do ícone</Label>
+            <Label className="text-xs">{t("cat.color")}</Label>
             <div className="flex flex-wrap gap-1.5">
               {CATEGORY_COLORS.map((c) => {
                 const Icon = SelectedIcon;
@@ -117,17 +119,17 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
           <Button onClick={create} disabled={!name.trim()} className="w-full rounded-xl">
-            Adicionar categoria
+            {t("cat.add")}
           </Button>
         </div>
 
         {/* All categories */}
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Suas categorias ({cats.length})
+            {t("cat.yours", { n: cats.length })}
           </div>
           {cats.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma categoria. Crie uma acima.</p>
+            <p className="text-xs text-muted-foreground">{t("cat.empty")}</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {cats.map((c) => {
@@ -142,7 +144,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
                     <button
                       onClick={() => remove(c.id, c.name)}
                       className="ml-1 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                      title="Remover"
+                      title={t("cat.remove")}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -157,7 +159,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
         {removedBuiltins.length > 0 && (
           <div className="space-y-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Padrão removidas ({removedBuiltins.length})
+              {t("cat.removed", { n: removedBuiltins.length })}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {removedBuiltins.map((c) => {
@@ -166,7 +168,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
                   <button
                     key={c.id}
                     onClick={() => restore(c.id, c.name)}
-                    title="Restaurar"
+                    title={t("cat.restore")}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-foreground"
                   >
                     <Icon className={cn("h-3.5 w-3.5", c.color)} />
@@ -182,7 +184,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: Props) {
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)} className="rounded-xl gap-1.5">
             <X className="h-4 w-4" />
-            Fechar
+            {t("cat.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
