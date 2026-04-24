@@ -284,7 +284,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               {folderPath && onLocateFolder && (
                 <button
                   onClick={() => onLocateFolder(folderPath)}
-                  title="Mostrar pasta na lista"
+                  title={t("viewer.folderShow")}
                   className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
                 >
                   <FolderTree className="h-3 w-3" />
@@ -292,7 +292,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               )}
               <button
                 onClick={copyPath}
-                title="Copiar caminho"
+                title={t("viewer.copyPath")}
                 className="rounded p-0.5 text-muted-foreground/70 hover:bg-secondary hover:text-foreground"
               >
                 {pathCopied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
@@ -311,10 +311,10 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                   size="sm"
                   onClick={togglePauseOnType}
                   className="h-8 rounded-xl gap-1.5 px-2.5"
-                  title={pauseOnType ? "Pausar enquanto digita: ATIVO" : "Pausar enquanto digita: desligado"}
+                  title={pauseOnType ? t("viewer.pauseOn") : t("viewer.pauseOff")}
                 >
                   {pauseOnType ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                  <span className="hidden lg:inline">{pauseOnType ? "Pausa ao digitar" : "Sem pausa"}</span>
+                  <span className="hidden lg:inline">{pauseOnType ? t("viewer.pauseLabelOn") : t("viewer.pauseLabelOff")}</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -343,14 +343,14 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               size="sm"
               onClick={() => setNotesVisible(showNotes ? "off" : "on")}
               className="h-8 rounded-xl gap-1.5 px-2.5"
-              title={showNotes ? "Ocultar anotações" : "Mostrar anotações"}
+              title={showNotes ? t("viewer.notesHide") : t("viewer.notesShow")}
             >
               {showNotes ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{showNotes ? "Ocultar notas" : "Mostrar notas"}</span>
+              <span className="hidden sm:inline">{showNotes ? t("viewer.notesLabelHide") : t("viewer.notesLabelShow")}</span>
             </Button>
             <Button variant="outline" size="sm" onClick={downloadFile} disabled={!url} className="h-8 rounded-xl gap-1.5 px-2.5">
               <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Baixar</span>
+              <span className="hidden sm:inline">{t("viewer.download")}</span>
             </Button>
             <Button
               variant={file.watched ? "default" : "outline"}
