@@ -579,13 +579,20 @@ function ViewerContent({
     <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
       <Icon className="h-16 w-16 text-muted-foreground" strokeWidth={1.5} />
       <div>
-        <p className="font-display text-base font-semibold text-foreground">Pré-visualização indisponível</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Formatos do Office (.doc, .docx, .ppt, .pptx, .xls, .xlsx) não podem ser
-          renderizados no navegador. Use “Baixar” para abrir no aplicativo nativo.
-        </p>
+        <PreviewUnavailable />
       </div>
     </div>
+  );
+}
+
+function PreviewUnavailable() {
+  // Hook usage isolated so the parent stays a non-component helper.
+  const { t } = useI18n();
+  return (
+    <>
+      <p className="font-display text-base font-semibold text-foreground">{t("viewer.previewUnavail")}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t("viewer.previewOfficeMsg")}</p>
+    </>
   );
 }
 
