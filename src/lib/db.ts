@@ -12,7 +12,8 @@ export interface CourseFileMeta {
   watched: boolean;
   watchedAt?: number;
   comment?: string;
-  progress?: number; // 0..1 for videos
+  /** For videos/audio: last currentTime in SECONDS where the user paused. */
+  progress?: number;
 }
 
 export interface Course {
@@ -212,4 +213,70 @@ export async function touchCourseLastFile(courseId: string, fileId: string) {
   const c = await db.get("courses", courseId);
   if (!c) return;
   await db.put("courses", { ...c, lastFileId: fileId, lastAccessedAt: Date.now() });
+}
+
+/** Persist the current playback position for a media file (in seconds). */
+export async function saveFileProgress(fileId: string, seconds: number) {
+  const db = await getDB();
+  const f = await db.get("files", fileId);
+  if (!f) return;
+  await db.put("files", { ...f, progress: seconds });
+}
+
+// ---- Library export / import (JSON) ----
+
+export interface LibraryBackupV1 {
+  version: 1;
+  exportedAt: number;
+  courses: Array<Omit<Course, "handle"> & { handle?: undefined }>;
+  files: CourseFileMeta[];
+  customCategories: unknown; // shape owned by categories.ts
+  removedBuiltins: string[];
+}
+
+/** Build a JSON-serializable snapshot of the entire library (no blobs/handles). */
+export async function exportLibrary(extra: {
+  customCategories: unknown;
+  removedBuiltins: string[];
+}): Promise<LibraryBackupV1> {
+  const db = await getDB();
+  const courses = await db.getAll("courses");
+  const files = await db.getAll("files");
+  // Strip non-serializable fields (FileSystemDirectoryHandle).
+  const sanitizedCourses = courses.map((c) => {
+    const { handle: _h, ...rest } = c;
+    void _h;
+    return { ...rest, handle: undefined };
+  });
+  return {
+    version: 1,
+    exportedAt: Date.now(),
+    courses: sanitizedCourses,
+    files,
+    customCategories: extra.customCategories,
+    removedBuiltins: extra.removedBuiltins,
+  };
+}
+
+/** Merge an imported backup into the local DB. Returns number of courses imported. */
+export async function importLibrary(backup: LibraryBackupV1): Promise<number> {
+  if (!backup || backup.version !== 1) throw new Error("Unsupported backup version");
+  const db = await getDB();
+  const tx = db.transaction(["courses", "files"], "readwrite");
+  for (const c of backup.courses) {
+    // Imported courses lose their FSA handle and any RAM-only file map.
+    // Force them into "memory" mode so the user is prompted to re-pick the
+    // folder on first open in this browser.
+    const incoming: Course = {
+      ...c,
+      handle: undefined,
+      source: c.source === "cached" ? "cached" : "memory",
+    } as Course;
+    await tx.objectStore("courses").put(incoming);
+  }
+  for (const f of backup.files) {
+    await tx.objectStore("files").put(f);
+  }
+  await tx.done;
+  return backup.courses.length;
 }
