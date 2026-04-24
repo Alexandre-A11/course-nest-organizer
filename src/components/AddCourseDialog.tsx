@@ -375,7 +375,7 @@ export function AddCourseDialog({ onAdded }: Props) {
                   color === c ? "ring-foreground scale-110" : "ring-transparent hover:scale-105",
                 )}
                 style={{ background: c }}
-                aria-label={`Cor ${c}`}
+                aria-label={t("field.colorAria", { c })}
               />
             ))}
           </div>
