@@ -254,12 +254,12 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
 
   // Label for the "watched" toggle depends on the file kind.
   const watchedLabels = (() => {
-    if (file.kind === "video") return { done: t("card.watchedVideo") || "Assistido", todo: t("card.markVideo") || "Marcar assistido" };
-    if (file.kind === "audio") return { done: t("card.watchedAudio") || "Ouvido", todo: t("card.markAudio") || "Marcar ouvido" };
+    if (file.kind === "video") return { done: t("card.watchedVideo"), todo: t("card.markVideo") };
+    if (file.kind === "audio") return { done: t("card.watchedAudio"), todo: t("card.markAudio") };
     if (file.kind === "pdf" || file.kind === "doc") {
-      return { done: t("card.watchedDoc") || "Lido", todo: t("card.markDoc") || "Marcar como lido" };
+      return { done: t("card.watchedDoc"), todo: t("card.markDoc") };
     }
-    return { done: t("card.watchedOther") || "Concluído", todo: t("card.markOther") || "Marcar concluído" };
+    return { done: t("card.watchedOther"), todo: t("card.markOther") };
   })();
 
   const handleExport = (format: ExportFormat) => {
