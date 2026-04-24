@@ -455,9 +455,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                 onChange={handleCommentChange}
                 onFocus={handleEditorFocus}
                 onBlur={handleEditorBlur}
-                placeholder={isMedia
-                  ? "Suas notas sobre essa aula… use ‘Marcar tempo’ para inserir [mm:ss] clicáveis."
-                  : "Suas notas sobre esse material…"}
+                placeholder={isMedia ? t("notes.placeholderMedia") : t("notes.placeholderOther")}
                 onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
               />
               {isMedia && tokens.length > 0 && (
