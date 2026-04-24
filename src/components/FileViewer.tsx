@@ -35,6 +35,7 @@ const MIN_NOTES_WIDTH = 280;
 const MAX_NOTES_WIDTH = 720;
 
 export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
+  const { t } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,10 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const blobRef = useRef<File | null>(null);
   const commentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasPlayingRef = useRef(false);
+  /** Last persisted playback position (sec) — throttle disk writes. */
+  const lastSavedTimeRef = useRef<number>(-Infinity);
+  /** Resume target captured from file.progress when the file changes. */
+  const resumeAtRef = useRef<number | null>(null);
 
   const folderPath = file.path.includes("/") ? file.path.split("/").slice(0, -1).join("/") : "";
 
@@ -72,6 +77,11 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     let objectUrl: string | null = null;
     setLoading(true);
     setError(null);
+    // Capture resume target for this file BEFORE we start loading.
+    resumeAtRef.current = (file.kind === "video" || file.kind === "audio") && file.progress && file.progress > 1
+      ? file.progress
+      : null;
+    lastSavedTimeRef.current = -Infinity;
 
     (async () => {
       try {
@@ -85,8 +95,8 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
         setLoading(false);
       } catch (e) {
         if (!active) return;
-        const msg = (e as Error).message ?? "Erro ao abrir arquivo";
-        setError(msg.includes("permission") ? "Permissão de pasta expirada — recarregue a página e autorize de novo." : msg);
+        const msg = (e as Error).message ?? t("viewer.openErr");
+        setError(msg.includes("permission") ? t("viewer.permExpired") : msg);
         setLoading(false);
       }
     })();
@@ -95,7 +105,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [course, file.id, file.path]);
+  }, [course, file.id, file.path, file.kind, file.progress, t]);
 
   // Sync local comment state when file changes (separate from blob effect).
   useEffect(() => {
