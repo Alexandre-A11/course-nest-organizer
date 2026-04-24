@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
-  Settings2,
+  Settings2, HardDrive,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
 } from "@/lib/fs";
 import {
-  saveCourse, upsertFiles, type Course,
+  saveCourse, upsertFiles, putFileBlobs, type Course,
 } from "@/lib/db";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
@@ -43,6 +44,9 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
+  /** When true (only meaningful in non-FSA browsers), copy files into IDB. */
+  const [keepOffline, setKeepOffline] = useState(false);
+  const [progressMsg, setProgressMsg] = useState<string | null>(null);
   const [manageCats, setManageCats] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +61,7 @@ export function AddCourseDialog({ onAdded }: Props) {
   const reset = () => {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
+    setKeepOffline(false); setProgressMsg(null);
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
   };
 
@@ -135,17 +140,19 @@ export function AddCourseDialog({ onAdded }: Props) {
       await upsertFiles(metas);
       scannedCount = metas.length;
     } else if (memoryFiles) {
+      const useCache = keepOffline;
       const course: Course = {
         id, name: name.trim(),
         description: description.trim() || undefined,
         createdAt: Date.now(),
-        source: "memory",
+        source: useCache ? "cached" : "memory",
         rootName, color,
         category: category || undefined,
         banner,
       };
       await saveCourse(course);
-      // Always keep session map for instant access this session.
+      // Always keep session map for instant access this session (memory mode
+      // needs it; cached mode benefits from it as a same-session shortcut).
       setCourseFiles(id, memoryFiles);
       const scanned = Array.from(memoryFiles.entries()).map(([path, f]) => ({
         path, name: f.name, size: f.size, kind: getKind(f.name),
@@ -153,9 +160,24 @@ export function AddCourseDialog({ onAdded }: Props) {
       const metas = mergeScanWithMeta(id, scanned, []);
       await upsertFiles(metas);
       scannedCount = metas.length;
+
+      if (useCache) {
+        setProgressMsg(t("add.cacheCopying"));
+        // Persist blobs in chunks to keep transactions small.
+        const entries = metas.map((m) => {
+          const f = memoryFiles.get(m.path);
+          return f ? { id: m.id, courseId: id, blob: f } : null;
+        }).filter((x): x is { id: string; courseId: string; blob: File } => x !== null);
+        const CHUNK = 25;
+        for (let i = 0; i < entries.length; i += CHUNK) {
+          await putFileBlobs(entries.slice(i, i + CHUNK));
+        }
+        toast.success(t("add.cachedDone", { n: entries.length }));
+      }
     }
 
     setScanning(false);
+    setProgressMsg(null);
     setOpen(false);
     reset();
     onAdded();
