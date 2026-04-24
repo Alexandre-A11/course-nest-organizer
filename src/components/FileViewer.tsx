@@ -480,24 +480,43 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
 }
 
 function ViewerContent({
-  file, url, onVideoEnded, mediaRef, initialSpeed,
+  file, url, onVideoEnded, mediaRef, initialSpeed, resumeAt, onTimeUpdate, onPause,
 }: {
   file: CourseFileMeta;
   url: string;
   onVideoEnded: () => void;
   mediaRef: React.MutableRefObject<HTMLVideoElement | HTMLAudioElement | null>;
   initialSpeed: number;
+  resumeAt?: number | null;
+  onTimeUpdate?: (sec: number) => void;
+  onPause?: (sec: number) => void;
 }) {
+  const handleLoaded = (el: HTMLMediaElement | null) => {
+    if (!el) return;
+    el.playbackRate = initialSpeed;
+    if (resumeAt && resumeAt > 1 && Number.isFinite(resumeAt)) {
+      try { el.currentTime = resumeAt; } catch { /* ignore */ }
+    }
+  };
+  const onTU = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    onTimeUpdate?.(e.currentTarget.currentTime);
+  };
+  const onP = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    onPause?.(e.currentTarget.currentTime);
+  };
   if (file.kind === "video") {
     return (
       <div className="flex h-full items-center justify-center bg-black p-0 sm:p-6">
         <video
           key={url}
-          ref={(el) => { mediaRef.current = el; if (el) el.playbackRate = initialSpeed; }}
+          ref={(el) => { mediaRef.current = el; }}
           src={url}
           controls
           className="max-h-full max-w-full rounded-lg shadow-elevated"
           onEnded={onVideoEnded}
+          onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
+          onTimeUpdate={onTU}
+          onPause={onP}
         />
       </div>
     );
@@ -514,11 +533,14 @@ function ViewerContent({
           <FileAudio className="h-14 w-14" />
         </div>
         <audio
-          ref={(el) => { mediaRef.current = el; if (el) el.playbackRate = initialSpeed; }}
+          ref={(el) => { mediaRef.current = el; }}
           src={url}
           controls
           className="w-full max-w-md"
           onEnded={onVideoEnded}
+          onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
+          onTimeUpdate={onTU}
+          onPause={onP}
         />
       </div>
     );
