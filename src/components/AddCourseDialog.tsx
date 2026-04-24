@@ -164,10 +164,11 @@ export function AddCourseDialog({ onAdded }: Props) {
       if (useCache) {
         setProgressMsg(t("add.cacheCopying"));
         // Persist blobs in chunks to keep transactions small.
-        const entries = metas.map((m) => {
+        const entries: { id: string; courseId: string; blob: Blob }[] = [];
+        for (const m of metas) {
           const f = memoryFiles.get(m.path);
-          return f ? { id: m.id, courseId: id, blob: f } : null;
-        }).filter((x): x is { id: string; courseId: string; blob: File } => x !== null);
+          if (f) entries.push({ id: m.id, courseId: id, blob: f });
+        }
         const CHUNK = 25;
         for (let i = 0; i < entries.length; i += CHUNK) {
           await putFileBlobs(entries.slice(i, i + CHUNK));
