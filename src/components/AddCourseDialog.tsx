@@ -282,6 +282,25 @@ export function AddCourseDialog({ onAdded }: Props) {
           {memoryFiles && (
             <p className="px-1 text-xs text-muted-foreground">{t("field.fsHint")}</p>
           )}
+
+          {memoryFiles && !supported && (
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
+              <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="keep-offline" className="cursor-pointer text-sm font-medium">
+                    {t("add.cacheToggle")}
+                  </Label>
+                  <Switch
+                    id="keep-offline"
+                    checked={keepOffline}
+                    onCheckedChange={setKeepOffline}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{t("add.cacheHint")}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Name */}
