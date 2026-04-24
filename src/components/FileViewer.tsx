@@ -158,13 +158,13 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     onUpdated(updated);
     if (updated.watched) {
       const msg =
-        file.kind === "video" ? "Marcado como assistido"
-        : file.kind === "audio" ? "Marcado como ouvido"
-        : (file.kind === "pdf" || file.kind === "doc") ? "Marcado como lido"
-        : "Marcado como concluído";
+        file.kind === "video" ? t("toast.markedWatched")
+        : file.kind === "audio" ? t("toast.markedListened")
+        : (file.kind === "pdf" || file.kind === "doc") ? t("toast.markedRead")
+        : t("toast.markedDone");
       toast.success(msg);
     } else {
-      toast.success("Desmarcado");
+      toast.success(t("toast.unmarked"));
     }
   };
 
@@ -225,18 +225,20 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       await navigator.clipboard.writeText(full);
       setPathCopied(true);
       setTimeout(() => setPathCopied(false), 1400);
-      toast.success("Caminho copiado");
+      toast.success(t("toast.copied"));
     } catch {
-      toast.error("Não foi possível copiar");
+      toast.error(t("toast.copyErr"));
     }
   };
 
   const handleVideoEnded = async () => {
+    // Reset progress so "continue" doesn't keep landing at the end.
+    void saveFileProgress(file.id, 0);
     if (file.watched) return;
     const updated = { ...file, watched: true, watchedAt: Date.now() };
     await upsertFile(updated);
     onUpdated(updated);
-    toast.success("Aula concluída ✓");
+    toast.success(t("toast.lessonDone"));
   };
 
   const seekTo = (sec: number) => {
@@ -250,15 +252,14 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const isMedia = file.kind === "video" || file.kind === "audio";
   const showNotes = notesVisible === "on";
 
-  // Label for the "watched" toggle depends on the file kind. PDFs/docs are
-  // "read", media is "watched", anything else is generically "completed".
+  // Label for the "watched" toggle depends on the file kind.
   const watchedLabels = (() => {
-    if (file.kind === "video") return { done: "Assistido", todo: "Marcar assistido" };
-    if (file.kind === "audio") return { done: "Ouvido", todo: "Marcar ouvido" };
+    if (file.kind === "video") return { done: t("card.watchedVideo") || "Assistido", todo: t("card.markVideo") || "Marcar assistido" };
+    if (file.kind === "audio") return { done: t("card.watchedAudio") || "Ouvido", todo: t("card.markAudio") || "Marcar ouvido" };
     if (file.kind === "pdf" || file.kind === "doc") {
-      return { done: "Lido", todo: "Marcar como lido" };
+      return { done: t("card.watchedDoc") || "Lido", todo: t("card.markDoc") || "Marcar como lido" };
     }
-    return { done: "Concluído", todo: "Marcar concluído" };
+    return { done: t("card.watchedOther") || "Concluído", todo: t("card.markOther") || "Marcar concluído" };
   })();
 
   const handleExport = (format: ExportFormat) => {
@@ -267,7 +268,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       title: file.name,
       html: comment,
     });
-    toast.success(`Notas exportadas (${format.toUpperCase()})`);
+    toast.success(t("toast.notesExported", { format: format.toUpperCase() }));
   };
 
   return (
