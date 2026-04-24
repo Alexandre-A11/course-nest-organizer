@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { Course, CourseFileMeta } from "@/lib/db";
-import { upsertFile } from "@/lib/db";
+import { upsertFile, saveFileProgress } from "@/lib/db";
 import { getFileFromCourse, formatBytes } from "@/lib/fs";
 import { getCourseFiles } from "@/lib/sessionFiles";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
+import { useI18n } from "@/lib/i18n";
 
 interface Props {
   course: Course;
