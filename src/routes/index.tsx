@@ -237,7 +237,7 @@ function Home() {
                   <button
                     onClick={() => setCategoryFilter(null)}
                     className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary"
-                    title="Limpar filtro"
+                    title={t("home.clearFilter")}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
