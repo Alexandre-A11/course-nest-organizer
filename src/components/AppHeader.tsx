@@ -1,11 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, DatabaseBackup } from "lucide-react";
+import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { BackupDialog } from "@/components/BackupDialog";
 import { useI18n } from "@/lib/i18n";
 
 export function AppHeader() {
   const { t } = useI18n();
+  const [backupOpen, setBackupOpen] = useState(false);
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -31,10 +34,26 @@ export function AppHeader() {
           >
             {t("nav.myCourses")}
           </Link>
+          <button
+            type="button"
+            onClick={() => setBackupOpen(true)}
+            title={t("nav.backup")}
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <DatabaseBackup className="h-4 w-4" />
+          </button>
           <LanguageToggle />
           <ThemeToggle />
         </nav>
       </div>
+      <BackupDialog
+        open={backupOpen}
+        onOpenChange={setBackupOpen}
+        onImported={() => {
+          // Soft reload so all routes pick up the new IDB content.
+          if (typeof window !== "undefined") window.location.reload();
+        }}
+      />
     </header>
   );
 }
