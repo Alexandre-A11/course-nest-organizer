@@ -597,6 +597,7 @@ function PreviewUnavailable() {
 }
 
 function TextPreview({ url, name }: { url: string; name: string }) {
+  const { t } = useI18n();
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -624,7 +625,7 @@ function TextPreview({ url, name }: { url: string; name: string }) {
   }
   return (
     <pre className="h-full overflow-auto whitespace-pre-wrap break-words bg-card p-4 sm:p-6 font-mono text-[13px] leading-relaxed text-foreground">
-      {content || `(${name} está vazio)`}
+      {content || t("viewer.empty", { name })}
     </pre>
   );
 }
