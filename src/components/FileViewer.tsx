@@ -383,6 +383,20 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               onVideoEnded={handleVideoEnded}
               mediaRef={mediaRef}
               initialSpeed={speed}
+            resumeAt={resumeAtRef.current}
+            onTimeUpdate={(sec) => {
+              if (file.kind !== "video" && file.kind !== "audio") return;
+              // Persist at most every 5s.
+              if (Math.abs(sec - lastSavedTimeRef.current) >= 5) {
+                lastSavedTimeRef.current = sec;
+                void saveFileProgress(file.id, sec);
+              }
+            }}
+            onPause={(sec) => {
+              if (file.kind !== "video" && file.kind !== "audio") return;
+              lastSavedTimeRef.current = sec;
+              void saveFileProgress(file.id, sec);
+            }}
             />
           )}
         </div>
@@ -400,7 +414,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
             onPointerUp={onDragEnd}
             onPointerCancel={onDragEnd}
             className="hidden md:flex w-1.5 cursor-col-resize select-none items-center justify-center bg-border/40 transition-colors hover:bg-primary/40"
-            title="Arraste para redimensionar"
+            title={t("viewer.dragResize")}
           >
             <div className="h-8 w-0.5 rounded-full bg-muted-foreground/40" />
           </div>
@@ -410,12 +424,12 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
           >
             <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 sm:px-6">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Anotações
+                {t("notes.title")}
                 {savingComment ? (
-                  <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">salvando…</span>
+                  <span className="ml-1 text-[11px] font-normal normal-case tracking-normal text-muted-foreground/70">{t("notes.saving")}</span>
                 ) : savedFlash ? (
                   <span className="ml-1 flex items-center gap-1 text-[11px] font-normal normal-case tracking-normal text-success">
-                    <Check className="h-3 w-3" /> salvo
+                    <Check className="h-3 w-3" /> {t("notes.saved")}
                   </span>
                 ) : null}
               </div>
@@ -423,7 +437,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs">
                     <FileDown className="h-3.5 w-3.5" />
-                    Baixar
+                    {t("notes.export")}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
