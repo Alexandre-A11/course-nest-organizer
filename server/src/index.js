@@ -308,6 +308,32 @@ app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
   }
 });
 
+// ---------------- Static frontend (SPA) ----------------
+// When PUBLIC_DIR exists (single-container deploy), serve the built web app.
+// API routes are registered ABOVE this block so they win over the SPA fallback.
+if (fs.existsSync(PUBLIC_DIR)) {
+  // Cache hashed assets aggressively, never the entry HTML.
+  app.use(express.static(PUBLIC_DIR, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      } else {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  }));
+  // SPA fallback: serve index.html for anything that didn't match an API route.
+  app.get(/^(?!\/(health|library|sync|folders|folders-scan|stream)\b).*/, (_req, res) => {
+    const indexFile = path.join(PUBLIC_DIR, "index.html");
+    if (fs.existsSync(indexFile)) {
+      res.sendFile(indexFile);
+    } else {
+      res.status(404).send("Frontend bundle not found");
+    }
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`[course-vault-server] v${VERSION} listening on :${PORT}`);
   console.log(`  data dir   : ${DATA_DIR}`);
