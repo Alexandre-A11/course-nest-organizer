@@ -226,21 +226,40 @@ export async function syncOnce(): Promise<void> {
 
 // ---- Server folder browsing (used by AddCourseDialog) ----
 
-export async function listServerFolders(): Promise<{ name: string }[]> {
-  const url = getServerUrl();
-  if (!url) throw new Error("no server");
-  const res = await fetch(`${url}/folders`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as { folders: { name: string }[] };
-  return data.folders;
+export interface RemoteFolder {
+  name: string;
+  /** Path relative to COURSES_DIR (e.g. "Math/Calc1"). */
+  path: string;
+  hasChildren: boolean;
 }
 
-export async function scanServerFolder(folder: string): Promise<{ files: { path: string; name: string; size: number; kind: string }[] }> {
+/** List direct children of `parent` (or COURSES_DIR root when omitted). */
+export async function listServerFolders(parent?: string): Promise<RemoteFolder[]> {
   const url = getServerUrl();
   if (!url) throw new Error("no server");
-  const res = await fetch(`${url}/folders/${encodeURIComponent(folder)}/scan`);
+  const qs = parent ? `?parent=${encodeURIComponent(parent)}` : "";
+  const res = await fetch(`${url}/folders${qs}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await res.json() as { folders: RemoteFolder[] };
+  // Older servers (pre-subfolder) returned { name } only; backfill.
+  return data.folders.map((f) => ({
+    name: f.name,
+    path: f.path ?? f.name,
+    hasChildren: !!f.hasChildren,
+  }));
+}
+
+export async function scanServerFolder(folderPath: string): Promise<{ files: { path: string; name: string; size: number; kind: string }[] }> {
+  const url = getServerUrl();
+  if (!url) throw new Error("no server");
+  // Use the splat endpoint that supports nested paths; URL-encode each segment.
+  const encoded = folderPath.split("/").map(encodeURIComponent).join("/");
+  const res = await fetch(`${url}/folders-scan/${encoded}`);
+  if (res.ok) return res.json();
+  // Fallback for legacy single-segment scan endpoint.
+  const legacy = await fetch(`${url}/folders/${encodeURIComponent(folderPath)}/scan`);
+  if (!legacy.ok) throw new Error(`HTTP ${legacy.status}`);
+  return legacy.json();
 }
 
 /** Build a streaming URL for a remote file. */
@@ -248,6 +267,7 @@ export function streamUrlFor(folder: string, relPath: string): string | null {
   const url = getServerUrl();
   if (!url) return null;
   const parts = relPath.split("/").map(encodeURIComponent).join("/");
+  // Folder may itself contain "/" — encode the WHOLE path as one segment.
   return `${url}/stream/${encodeURIComponent(folder)}/${parts}`;
 }
 
