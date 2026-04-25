@@ -14,6 +14,8 @@ export interface CourseFileMeta {
   comment?: string;
   /** For videos/audio: last currentTime in SECONDS where the user paused. */
   progress?: number;
+  /** Last local mutation timestamp (ms). Used by the sync layer. */
+  updatedAt?: number;
 }
 
 export interface Course {
@@ -28,11 +30,15 @@ export interface Course {
   //    RAM for this session unless `cached: true`.
   //  - "cached": files are stored as Blobs inside IndexedDB (see fileBlobs
   //    store). Works fully offline across sessions, no re-pick needed.
-  source: "handle" | "memory" | "cached";
+  //  - "remote": files live on a self-hosted Course Vault server and are
+  //    streamed via HTTP. `remoteFolder` is the folder name on the server.
+  source: "handle" | "memory" | "cached" | "remote";
   // Native handle (only present in Chromium-based browsers)
   handle?: FileSystemDirectoryHandle;
   // For "memory" sources we store the original folder name for re-matching
   rootName?: string;
+  /** For "remote" sources: folder name inside the server's COURSES_DIR. */
+  remoteFolder?: string;
   color: string; // accent color seed
   // Optional category id (see src/lib/categories.ts)
   category?: string;
@@ -43,6 +49,8 @@ export interface Course {
   // you left off" feature on the home page.
   lastFileId?: string;
   lastAccessedAt?: number;
+  /** Last local mutation timestamp (ms). Used by the sync layer. */
+  updatedAt?: number;
 }
 
 interface Schema extends DBSchema {
