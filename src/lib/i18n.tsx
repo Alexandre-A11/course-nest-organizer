@@ -525,6 +525,24 @@ const EN: Dict = {
   "backup.importDesc": "Load a .json generated on another browser. Courses with the same ID are updated; new ones are added.",
   "backup.importBtn": "Choose .json file",
   "backup.note": "Folder handles and offline cache do not travel with the backup — you'll need to point to the folder again on this browser.",
+
+  // Server sync dialog
+  "server.title": "Sync server",
+  "server.subtitle": "Connect to your local Course Vault server to share library and files across devices on the LAN.",
+  "server.urlLabel": "Server URL",
+  "server.urlHint": "e.g. http://192.168.1.50:8787 — run 'docker compose up' inside the server/ folder.",
+  "server.connect": "Connect",
+  "server.disconnect": "Disconnect",
+  "server.syncNow": "Sync now",
+  "server.notConnected": "Not connected",
+  "server.statusOnline": "Connected and synced",
+  "server.statusSyncing": "Syncing…",
+  "server.statusOffline": "Server unreachable — using local data",
+  "server.statusDisabled": "Sync disabled",
+  "server.lastSync": "Last sync: {when}",
+  "server.connOk": "Connected (server v{v})",
+  "server.connErr": "Connection failed: {msg}",
+  "server.disconnected": "Disconnected from server",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };
