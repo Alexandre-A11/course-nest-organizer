@@ -514,7 +514,15 @@ export function AddCourseDialog({ onAdded }: Props) {
           <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">
             {t("btn.cancel")}
           </Button>
-          <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
+          <Button
+            onClick={submit}
+            disabled={
+              (mode === "local" && !handle && !memoryFiles) ||
+              (mode === "remote" && !remoteFolder) ||
+              !name.trim() || scanning
+            }
+            className="rounded-xl"
+          >
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {scanning && progressMsg ? progressMsg : t("btn.create")}
           </Button>
