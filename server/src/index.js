@@ -22,6 +22,7 @@ import { readdir, stat } from "node:fs/promises";
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = process.env.DATA_DIR || path.resolve("./data");
 const COURSES_DIR = process.env.COURSES_DIR || path.resolve("./courses");
+const PUBLIC_DIR = process.env.PUBLIC_DIR || path.resolve("./public");
 const VERSION = "1.0.0";
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -311,4 +312,9 @@ app.listen(PORT, () => {
   console.log(`[course-vault-server] v${VERSION} listening on :${PORT}`);
   console.log(`  data dir   : ${DATA_DIR}`);
   console.log(`  courses dir: ${COURSES_DIR}`);
+  if (fs.existsSync(PUBLIC_DIR)) {
+    console.log(`  public dir : ${PUBLIC_DIR} (frontend served at /)`);
+  } else {
+    console.log(`  public dir : <none> (API-only mode)`);
+  }
 });
