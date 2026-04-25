@@ -263,6 +263,24 @@ const PT: Dict = {
   "backup.importDesc": "Carregue um .json gerado por outro navegador. Cursos com o mesmo ID serão atualizados; novos serão adicionados.",
   "backup.importBtn": "Selecionar arquivo .json",
   "backup.note": "Pastas (handles) e cache offline não viajam pelo backup — você precisará reapontar a pasta neste navegador.",
+
+  // Server sync dialog
+  "server.title": "Servidor de sincronização",
+  "server.subtitle": "Conecte-se ao seu servidor Course Vault na rede local para compartilhar biblioteca e arquivos entre dispositivos.",
+  "server.urlLabel": "URL do servidor",
+  "server.urlHint": "Ex.: http://192.168.1.50:8787 — execute 'docker compose up' na pasta server/.",
+  "server.connect": "Conectar",
+  "server.disconnect": "Desconectar",
+  "server.syncNow": "Sincronizar agora",
+  "server.notConnected": "Não conectado",
+  "server.statusOnline": "Conectado e sincronizado",
+  "server.statusSyncing": "Sincronizando…",
+  "server.statusOffline": "Servidor inacessível — usando dados locais",
+  "server.statusDisabled": "Sync desativada",
+  "server.lastSync": "Última sincronização: {when}",
+  "server.connOk": "Conectado (servidor v{v})",
+  "server.connErr": "Falha ao conectar: {msg}",
+  "server.disconnected": "Desconectado do servidor",
 };
 
 const EN: Dict = {
@@ -272,6 +290,8 @@ const EN: Dict = {
   "nav.backup": "Backup",
   "nav.export": "Export library",
   "nav.import": "Import library",
+  "nav.server": "Sync server",
+  "nav.serverConnected": "Connected to server",
 
   "home.title": "My courses",
   "home.countOf": "{shown} of {total} course{plural}",
