@@ -239,6 +239,12 @@ const PT: Dict = {
   "viewer.previewUnavail": "Pré-visualização indisponível",
   "viewer.previewOfficeMsg": "Formatos do Office (.doc, .docx, .ppt, .pptx, .xls, .xlsx) não podem ser renderizados no navegador. Use \"Baixar\" para abrir no aplicativo nativo.",
   "viewer.empty": "({name} está vazio)",
+  "viewer.theaterOn": "Modo teatro (T)",
+  "viewer.theaterOff": "Sair do modo teatro (T)",
+  "viewer.theaterLabel": "Teatro",
+  "viewer.fullscreenEnter": "Tela cheia (F)",
+  "viewer.fullscreenExit": "Sair da tela cheia (F)",
+  "viewer.fullscreenLabel": "Tela cheia",
 
   // Categories dialog
   "cat.dialogTitle": "Gerenciar categorias",
@@ -508,6 +514,12 @@ const EN: Dict = {
   "viewer.previewUnavail": "Preview unavailable",
   "viewer.previewOfficeMsg": "Office formats (.doc, .docx, .ppt, .pptx, .xls, .xlsx) cannot be rendered in the browser. Use \"Download\" to open in the native app.",
   "viewer.empty": "({name} is empty)",
+  "viewer.theaterOn": "Theater mode (T)",
+  "viewer.theaterOff": "Exit theater mode (T)",
+  "viewer.theaterLabel": "Theater",
+  "viewer.fullscreenEnter": "Fullscreen (F)",
+  "viewer.fullscreenExit": "Exit fullscreen (F)",
+  "viewer.fullscreenLabel": "Fullscreen",
 
   "cat.dialogTitle": "Manage categories",
   "cat.dialogSubtitle": "Create and remove custom categories.",
