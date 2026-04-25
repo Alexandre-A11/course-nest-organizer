@@ -50,6 +50,13 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const [savedFlash, setSavedFlash] = useState(false);
   const [pathCopied, setPathCopied] = useState(false);
   const [notesVisible, setNotesVisible] = usePref<"on" | "off">("notes.visible", "on");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "normal";
+    const v = window.localStorage.getItem(VIEW_MODE_KEY);
+    return v === "theater" ? "theater" : "normal";
+  });
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [pauseOnType, setPauseOnType] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(PAUSE_ON_TYPE_KEY) === "1";
@@ -167,6 +174,53 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       return next;
     });
   };
+
+  const toggleTheater = () => {
+    setViewMode((m) => {
+      const next: ViewMode = m === "theater" ? "normal" : "theater";
+      try { window.localStorage.setItem(VIEW_MODE_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const toggleFullscreen = async () => {
+    const el = containerRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await el.requestFullscreen();
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Mirror native fullscreen state.
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  // Keyboard shortcuts: F = fullscreen, T = theater (only for media files).
+  useEffect(() => {
+    if (file.kind !== "video" && file.kind !== "audio") return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Ignore when typing in inputs / contentEditable (notes).
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        void toggleFullscreen();
+      } else if (e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        toggleTheater();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.kind]);
 
   const toggleWatched = async () => {
     const updated = { ...file, watched: !file.watched, watchedAt: !file.watched ? Date.now() : undefined };
