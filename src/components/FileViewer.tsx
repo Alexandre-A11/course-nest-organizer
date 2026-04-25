@@ -341,11 +341,27 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     toast.success(t("toast.notesExported", { format: format.toUpperCase() }));
   };
 
+  // Force-hide notes when in theater mode so the video can take the full area.
+  const showNotesEffective = showNotes && viewMode === "normal";
+
   return (
-    <div className="flex h-full flex-col md:flex-row">
+    <div
+      ref={containerRef}
+      className={cn(
+        "flex h-full flex-col md:flex-row",
+        viewMode === "theater" && "bg-black",
+        isFullscreen && "bg-black",
+      )}
+    >
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
+        <div
+          className={cn(
+            "flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4",
+            // Slimmer chrome in theater mode
+            viewMode === "theater" && "border-transparent bg-black/80 py-2 sm:py-2",
+          )}
+        >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground line-clamp-1">
@@ -406,6 +422,30 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {file.kind === "video" && (
+                  <>
+                    <Button
+                      variant={viewMode === "theater" ? "default" : "outline"}
+                      size="sm"
+                      onClick={toggleTheater}
+                      className="h-8 rounded-xl gap-1.5 px-2.5"
+                      title={viewMode === "theater" ? t("viewer.theaterOff") : t("viewer.theaterOn")}
+                    >
+                      {viewMode === "theater" ? <Monitor className="h-3.5 w-3.5" /> : <Tv className="h-3.5 w-3.5" />}
+                      <span className="hidden lg:inline">{t("viewer.theaterLabel")}</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void toggleFullscreen()}
+                      className="h-8 rounded-xl gap-1.5 px-2.5"
+                      title={isFullscreen ? t("viewer.fullscreenExit") : t("viewer.fullscreenEnter")}
+                    >
+                      {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                      <span className="hidden lg:inline">{t("viewer.fullscreenLabel")}</span>
+                    </Button>
+                  </>
+                )}
               </>
             )}
             <Button
@@ -435,7 +475,12 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
         </div>
 
         {/* Viewer */}
-        <div className="flex-1 overflow-auto bg-muted/30">
+        <div
+          className={cn(
+            "flex-1 overflow-auto",
+            viewMode === "theater" || isFullscreen ? "bg-black" : "bg-muted/30",
+          )}
+        >
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -453,6 +498,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               onVideoEnded={handleVideoEnded}
               mediaRef={mediaRef}
               initialSpeed={speed}
+              fillStage={viewMode === "theater" || isFullscreen}
             resumeAt={resumeAtRef.current}
             onTimeUpdate={(sec) => {
               if (file.kind !== "video" && file.kind !== "audio") return;
@@ -473,7 +519,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       </div>
 
       {/* Notes sidebar (vertical only). On mobile (<md) it stacks below. */}
-      {showNotes && (
+      {showNotesEffective && (
         <>
           {/* Drag handle (visible on md+) */}
           <div
