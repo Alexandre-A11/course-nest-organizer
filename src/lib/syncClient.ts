@@ -18,6 +18,12 @@ import {
 
 const URL_KEY = "course-vault.serverUrl";
 const LAST_SYNC_KEY = "course-vault.lastSyncAt";
+/**
+ * When the web app is being served from the Course Vault server itself
+ * (single-container Docker deploy), we auto-use the same origin as the API.
+ * This is detected by probing /health on window.location.origin at startup.
+ */
+const AUTO_DETECTED_KEY = "course-vault.autoServer";
 
 export type SyncStatus = "disabled" | "online" | "offline" | "syncing";
 
@@ -34,7 +40,33 @@ function notify() {
 
 export function getServerUrl(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(URL_KEY);
+  const explicit = window.localStorage.getItem(URL_KEY);
+  if (explicit) return explicit;
+  // Same-origin auto-detection (single-container deploy).
+  return window.localStorage.getItem(AUTO_DETECTED_KEY);
+}
+
+/**
+ * On startup, if we're not yet connected to a server, probe the current origin
+ * for /health. If it responds, treat it as the server URL automatically — this
+ * is the case when the user opens http://nas.local:8787 (Docker single-image).
+ */
+async function autoDetectSameOrigin(): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (window.localStorage.getItem(URL_KEY)) return; // user already chose
+  if (window.localStorage.getItem(AUTO_DETECTED_KEY)) return; // already detected
+  try {
+    const origin = window.location.origin;
+    // Don't probe on localhost dev (Vite) — the API isn't there.
+    if (/^(http:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return;
+    const res = await fetch(`${origin}/health`, { method: "GET" });
+    if (!res.ok) return;
+    const data = await res.json() as { ok?: boolean };
+    if (!data.ok) return;
+    window.localStorage.setItem(AUTO_DETECTED_KEY, origin);
+    startPolling();
+    void syncOnce();
+  } catch { /* ignore — no server here */ }
 }
 
 export function getStatus(): SyncStatus { return status; }
