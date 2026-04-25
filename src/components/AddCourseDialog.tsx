@@ -55,8 +55,13 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
-  /** When true (only meaningful in non-FSA browsers), copy files into IDB. */
-  const [keepOffline, setKeepOffline] = useState(false);
+  /**
+   * When true (only meaningful in non-FSA browsers like Firefox/Safari), copy
+   * files into IndexedDB so the user doesn't have to re-pick the folder every
+   * session. We default to true on those browsers since otherwise the only
+   * way back to the course is to re-open the folder picker each time.
+   */
+  const [keepOffline, setKeepOffline] = useState<boolean>(() => !isFsAccessSupported());
   const [progressMsg, setProgressMsg] = useState<string | null>(null);
   const [manageCats, setManageCats] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
