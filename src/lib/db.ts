@@ -14,6 +14,8 @@ export interface CourseFileMeta {
   comment?: string;
   /** For videos/audio: last currentTime in SECONDS where the user paused. */
   progress?: number;
+  /** Last local mutation timestamp (ms). Used by the sync layer. */
+  updatedAt?: number;
 }
 
 export interface Course {
@@ -28,11 +30,15 @@ export interface Course {
   //    RAM for this session unless `cached: true`.
   //  - "cached": files are stored as Blobs inside IndexedDB (see fileBlobs
   //    store). Works fully offline across sessions, no re-pick needed.
-  source: "handle" | "memory" | "cached";
+  //  - "remote": files live on a self-hosted Course Vault server and are
+  //    streamed via HTTP. `remoteFolder` is the folder name on the server.
+  source: "handle" | "memory" | "cached" | "remote";
   // Native handle (only present in Chromium-based browsers)
   handle?: FileSystemDirectoryHandle;
   // For "memory" sources we store the original folder name for re-matching
   rootName?: string;
+  /** For "remote" sources: folder name inside the server's COURSES_DIR. */
+  remoteFolder?: string;
   color: string; // accent color seed
   // Optional category id (see src/lib/categories.ts)
   category?: string;
@@ -43,6 +49,8 @@ export interface Course {
   // you left off" feature on the home page.
   lastFileId?: string;
   lastAccessedAt?: number;
+  /** Last local mutation timestamp (ms). Used by the sync layer. */
+  updatedAt?: number;
 }
 
 interface Schema extends DBSchema {
@@ -99,7 +107,7 @@ export async function getCourse(id: string) {
 
 export async function saveCourse(course: Course) {
   const db = await getDB();
-  await db.put("courses", course);
+  await db.put("courses", { ...course, updatedAt: Date.now() });
 }
 
 export async function deleteCourse(id: string) {
@@ -122,6 +130,8 @@ export async function deleteCourse(id: string) {
     c2 = await c2.continue();
   }
   await tx2.done;
+  // Remember the deletion so sync can propagate it.
+  rememberDeletedCourse(id);
 }
 
 export async function listFiles(courseId: string): Promise<CourseFileMeta[]> {
@@ -136,13 +146,14 @@ export async function getFileMeta(id: string) {
 
 export async function upsertFile(meta: CourseFileMeta) {
   const db = await getDB();
-  await db.put("files", meta);
+  await db.put("files", { ...meta, updatedAt: Date.now() });
 }
 
 export async function upsertFiles(metas: CourseFileMeta[]) {
   const db = await getDB();
   const tx = db.transaction("files", "readwrite");
-  await Promise.all(metas.map((m) => tx.store.put(m)));
+  const now = Date.now();
+  await Promise.all(metas.map((m) => tx.store.put({ ...m, updatedAt: now })));
   await tx.done;
 }
 
@@ -189,6 +200,7 @@ export async function resetCourseProgress(courseId: string) {
   const filesStore = tx.objectStore("files");
   const idx = filesStore.index("byCourse");
   let cursor = await idx.openCursor(courseId);
+  const now = Date.now();
   while (cursor) {
     const f = cursor.value as CourseFileMeta;
     await cursor.update({
@@ -197,12 +209,15 @@ export async function resetCourseProgress(courseId: string) {
       watchedAt: undefined,
       progress: undefined,
       comment: undefined,
+      updatedAt: now,
     });
     cursor = await cursor.continue();
   }
   const c = await tx.objectStore("courses").get(courseId);
   if (c) {
-    await tx.objectStore("courses").put({ ...c, lastFileId: undefined, lastAccessedAt: undefined });
+    await tx.objectStore("courses").put({
+      ...c, lastFileId: undefined, lastAccessedAt: undefined, updatedAt: now,
+    });
   }
   await tx.done;
 }
@@ -212,7 +227,8 @@ export async function touchCourseLastFile(courseId: string, fileId: string) {
   const db = await getDB();
   const c = await db.get("courses", courseId);
   if (!c) return;
-  await db.put("courses", { ...c, lastFileId: fileId, lastAccessedAt: Date.now() });
+  const now = Date.now();
+  await db.put("courses", { ...c, lastFileId: fileId, lastAccessedAt: now, updatedAt: now });
 }
 
 /** Persist the current playback position for a media file (in seconds). */
@@ -220,7 +236,36 @@ export async function saveFileProgress(fileId: string, seconds: number) {
   const db = await getDB();
   const f = await db.get("files", fileId);
   if (!f) return;
-  await db.put("files", { ...f, progress: seconds });
+  await db.put("files", { ...f, progress: seconds, updatedAt: Date.now() });
+}
+
+// ---- Deletion log (so sync can propagate removals) ----
+
+const DELETED_COURSES_KEY = "course-vault.deletedCourses";
+
+function loadDeletedCourses(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(DELETED_COURSES_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch { return new Set(); }
+}
+function saveDeletedCourses(set: Set<string>) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(DELETED_COURSES_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+export function rememberDeletedCourse(id: string) {
+  const s = loadDeletedCourses();
+  s.add(id);
+  saveDeletedCourses(s);
+}
+export function getDeletedCourseIds(): string[] {
+  return [...loadDeletedCourses()];
+}
+export function clearDeletedCourses(ids: string[]) {
+  const s = loadDeletedCourses();
+  for (const id of ids) s.delete(id);
+  saveDeletedCourses(s);
 }
 
 // ---- Library export / import (JSON) ----

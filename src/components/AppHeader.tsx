@@ -1,14 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import { GraduationCap, DatabaseBackup } from "lucide-react";
-import { useState } from "react";
+import { GraduationCap, DatabaseBackup, ServerCog, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { BackupDialog } from "@/components/BackupDialog";
+import { ServerSettingsDialog } from "@/components/ServerSettingsDialog";
+import { subscribeSync, type SyncStatus } from "@/lib/syncClient";
 import { useI18n } from "@/lib/i18n";
 
 export function AppHeader() {
   const { t } = useI18n();
   const [backupOpen, setBackupOpen] = useState(false);
+  const [serverOpen, setServerOpen] = useState(false);
+  const [sync, setSync] = useState<{ status: SyncStatus; url: string | null }>({
+    status: "disabled", url: null,
+  });
+  useEffect(() => subscribeSync((status, info) => {
+    setSync({ status, url: info.url });
+  }), []);
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -36,6 +45,21 @@ export function AppHeader() {
           </Link>
           <button
             type="button"
+            onClick={() => setServerOpen(true)}
+            title={sync.url ? t("nav.serverConnected") : t("nav.server")}
+            className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <ServerCog className="h-4 w-4" />
+            {sync.url && (
+              <span className="absolute -bottom-0.5 -right-0.5">
+                {sync.status === "online" && <CheckCircle2 className="h-3 w-3 text-success" />}
+                {sync.status === "syncing" && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                {sync.status === "offline" && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => setBackupOpen(true)}
             title={t("nav.backup")}
             className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
@@ -54,6 +78,7 @@ export function AppHeader() {
           if (typeof window !== "undefined") window.location.reload();
         }}
       />
+      <ServerSettingsDialog open={serverOpen} onOpenChange={setServerOpen} />
     </header>
   );
 }

@@ -14,6 +14,8 @@ const PT: Dict = {
   "nav.backup": "Backup",
   "nav.export": "Exportar biblioteca",
   "nav.import": "Importar biblioteca",
+  "nav.server": "Servidor de sincronização",
+  "nav.serverConnected": "Conectado ao servidor",
 
   // Home
   "home.title": "Meus cursos",
@@ -103,6 +105,12 @@ const PT: Dict = {
   "add.cacheHint": "Copia os arquivos para o navegador (IndexedDB). Não precisa reabrir a pasta a cada sessão, mas ocupa espaço em disco.",
   "add.cacheCopying": "Copiando arquivos para o cache offline…",
   "add.cachedDone": "{n} arquivos disponíveis offline",
+  "add.modeLocal": "Pasta local",
+  "add.modeRemote": "Do servidor",
+  "add.remoteLabel": "Pastas no servidor",
+  "add.remoteLoading": "Carregando pastas do servidor…",
+  "add.remoteEmpty": "Nenhuma pasta encontrada em /courses no servidor.",
+  "add.remoteHint": "Os arquivos ficam no servidor e são transmitidos via HTTP — sem ocupar espaço no navegador.",
   "edit.title": "Editar curso",
   "edit.subtitle": "Personalize título, categoria, banner e pasta.",
   "field.banner": "Banner",
@@ -255,6 +263,24 @@ const PT: Dict = {
   "backup.importDesc": "Carregue um .json gerado por outro navegador. Cursos com o mesmo ID serão atualizados; novos serão adicionados.",
   "backup.importBtn": "Selecionar arquivo .json",
   "backup.note": "Pastas (handles) e cache offline não viajam pelo backup — você precisará reapontar a pasta neste navegador.",
+
+  // Server sync dialog
+  "server.title": "Servidor de sincronização",
+  "server.subtitle": "Conecte-se ao seu servidor Course Vault na rede local para compartilhar biblioteca e arquivos entre dispositivos.",
+  "server.urlLabel": "URL do servidor",
+  "server.urlHint": "Ex.: http://192.168.1.50:8787 — execute 'docker compose up' na pasta server/.",
+  "server.connect": "Conectar",
+  "server.disconnect": "Desconectar",
+  "server.syncNow": "Sincronizar agora",
+  "server.notConnected": "Não conectado",
+  "server.statusOnline": "Conectado e sincronizado",
+  "server.statusSyncing": "Sincronizando…",
+  "server.statusOffline": "Servidor inacessível — usando dados locais",
+  "server.statusDisabled": "Sync desativada",
+  "server.lastSync": "Última sincronização: {when}",
+  "server.connOk": "Conectado (servidor v{v})",
+  "server.connErr": "Falha ao conectar: {msg}",
+  "server.disconnected": "Desconectado do servidor",
 };
 
 const EN: Dict = {
@@ -264,6 +290,8 @@ const EN: Dict = {
   "nav.backup": "Backup",
   "nav.export": "Export library",
   "nav.import": "Import library",
+  "nav.server": "Sync server",
+  "nav.serverConnected": "Connected to server",
 
   "home.title": "My courses",
   "home.countOf": "{shown} of {total} course{plural}",
@@ -347,6 +375,12 @@ const EN: Dict = {
   "add.cacheHint": "Copies the files into the browser (IndexedDB). No need to reopen the folder each session, but it uses disk space.",
   "add.cacheCopying": "Copying files to offline cache…",
   "add.cachedDone": "{n} files available offline",
+  "add.modeLocal": "Local folder",
+  "add.modeRemote": "From server",
+  "add.remoteLabel": "Folders on the server",
+  "add.remoteLoading": "Loading server folders…",
+  "add.remoteEmpty": "No folders found in /courses on the server.",
+  "add.remoteHint": "Files stay on the server and are streamed over HTTP — no browser disk usage.",
   "edit.title": "Edit course",
   "edit.subtitle": "Customize title, category, banner and folder.",
   "field.banner": "Banner",
@@ -491,6 +525,24 @@ const EN: Dict = {
   "backup.importDesc": "Load a .json generated on another browser. Courses with the same ID are updated; new ones are added.",
   "backup.importBtn": "Choose .json file",
   "backup.note": "Folder handles and offline cache do not travel with the backup — you'll need to point to the folder again on this browser.",
+
+  // Server sync dialog
+  "server.title": "Sync server",
+  "server.subtitle": "Connect to your local Course Vault server to share library and files across devices on the LAN.",
+  "server.urlLabel": "Server URL",
+  "server.urlHint": "e.g. http://192.168.1.50:8787 — run 'docker compose up' inside the server/ folder.",
+  "server.connect": "Connect",
+  "server.disconnect": "Disconnect",
+  "server.syncNow": "Sync now",
+  "server.notConnected": "Not connected",
+  "server.statusOnline": "Connected and synced",
+  "server.statusSyncing": "Syncing…",
+  "server.statusOffline": "Server unreachable — using local data",
+  "server.statusDisabled": "Sync disabled",
+  "server.lastSync": "Last sync: {when}",
+  "server.connOk": "Connected (server v{v})",
+  "server.connErr": "Connection failed: {msg}",
+  "server.disconnected": "Disconnected from server",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };

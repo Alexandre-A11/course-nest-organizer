@@ -58,6 +58,13 @@ function Home() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Refresh whenever the LAN sync layer pulls new data from the server.
+  useEffect(() => {
+    const onSync = () => { void load(); };
+    window.addEventListener("course-vault:synced", onSync);
+    return () => window.removeEventListener("course-vault:synced", onSync);
+  }, [load]);
+
   const handleDelete = async () => {
     if (!confirmDelete) return;
     await deleteCourse(confirmDelete.id);

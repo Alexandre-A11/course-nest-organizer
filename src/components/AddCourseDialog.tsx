@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
-  Settings2, HardDrive,
+  Settings2, HardDrive, Server, Folder,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
@@ -17,6 +17,9 @@ import {
 import {
   saveCourse, upsertFiles, putFileBlobs, type Course,
 } from "@/lib/db";
+import {
+  getServerUrl, listServerFolders, scanServerFolder,
+} from "@/lib/syncClient";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
@@ -34,6 +37,12 @@ interface Props {
 export function AddCourseDialog({ onAdded }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"local" | "remote">("local");
+  const [serverUrl, setServerUrl] = useState<string | null>(null);
+  const [serverFolders, setServerFolders] = useState<{ name: string }[] | null>(null);
+  const [remoteFolder, setRemoteFolder] = useState<string | null>(null);
+  const [remoteFileCount, setRemoteFileCount] = useState(0);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -62,7 +71,37 @@ export function AddCourseDialog({ onAdded }: Props) {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
     setKeepOffline(false); setProgressMsg(null);
+    setRemoteFolder(null); setRemoteFileCount(0);
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
+  };
+
+  // When opening, refresh server availability + folder list.
+  useEffect(() => {
+    if (!open) return;
+    const u = getServerUrl();
+    setServerUrl(u);
+    if (u) {
+      setLoadingFolders(true);
+      listServerFolders()
+        .then((f) => setServerFolders(f))
+        .catch(() => setServerFolders([]))
+        .finally(() => setLoadingFolders(false));
+    } else {
+      setMode("local");
+      setServerFolders(null);
+    }
+  }, [open]);
+
+  const pickRemoteFolder = async (folder: string) => {
+    setRemoteFolder(folder);
+    if (!name) setName(folder);
+    try {
+      const { files } = await scanServerFolder(folder);
+      setRemoteFileCount(files.length);
+    } catch {
+      setRemoteFileCount(0);
+      toast.error(t("toast.openErr"));
+    }
   };
 
   const pickFolder = async () => {
@@ -116,7 +155,9 @@ export function AddCourseDialog({ onAdded }: Props) {
   };
 
   const submit = async () => {
-    if ((!handle && !memoryFiles) || !name.trim()) return;
+    if (mode === "local" && (!handle && !memoryFiles)) return;
+    if (mode === "remote" && !remoteFolder) return;
+    if (!name.trim()) return;
     setScanning(true);
     const id = crypto.randomUUID();
 
@@ -125,7 +166,25 @@ export function AddCourseDialog({ onAdded }: Props) {
 
     let scannedCount = 0;
 
-    if (handle) {
+    if (mode === "remote" && remoteFolder) {
+      const course: Course = {
+        id, name: name.trim(),
+        description: description.trim() || undefined,
+        createdAt: Date.now(),
+        source: "remote",
+        remoteFolder,
+        color,
+        category: category || undefined,
+        banner,
+      };
+      await saveCourse(course);
+      const { files } = await scanServerFolder(remoteFolder);
+      const metas = mergeScanWithMeta(id, files.map((f) => ({
+        path: f.path, name: f.name, size: f.size, kind: getKind(f.name),
+      })), []);
+      await upsertFiles(metas);
+      scannedCount = metas.length;
+    } else if (handle) {
       const course: Course = {
         id, name: name.trim(),
         description: description.trim() || undefined,
@@ -207,6 +266,36 @@ export function AddCourseDialog({ onAdded }: Props) {
           </div>
         )}
 
+        {/* Mode tabs (only shown when a server is configured) */}
+        {serverUrl && (
+          <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() => setMode("local")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                mode === "local"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <HardDrive className="h-3.5 w-3.5" /> {t("add.modeLocal")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("remote")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                mode === "remote"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Server className="h-3.5 w-3.5" /> {t("add.modeRemote")}
+            </button>
+          </div>
+        )}
+
         <input
           ref={fallbackInputRef}
           type="file"
@@ -250,6 +339,7 @@ export function AddCourseDialog({ onAdded }: Props) {
         </div>
 
         {/* Folder */}
+        {mode === "local" && (
         <div className="space-y-2">
           <Label>{t("field.folder")}</Label>
           <button
@@ -302,6 +392,45 @@ export function AddCourseDialog({ onAdded }: Props) {
             </div>
           )}
         </div>
+        )}
+
+        {mode === "remote" && (
+          <div className="space-y-2">
+            <Label>{t("add.remoteLabel")}</Label>
+            <div className="rounded-xl border border-border bg-muted/30">
+              {loadingFolders ? (
+                <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("add.remoteLoading")}
+                </div>
+              ) : !serverFolders || serverFolders.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">{t("add.remoteEmpty")}</p>
+              ) : (
+                <div className="max-h-56 overflow-y-auto">
+                  {serverFolders.map((f) => (
+                    <button
+                      key={f.name}
+                      type="button"
+                      onClick={() => pickRemoteFolder(f.name)}
+                      className={cn(
+                        "flex w-full items-center gap-2 border-b border-border/50 px-3 py-2 text-left text-sm transition-colors hover:bg-primary-soft/40 last:border-b-0",
+                        remoteFolder === f.name && "bg-primary-soft/60 text-primary",
+                      )}
+                    >
+                      <Folder className="h-4 w-4 text-primary" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      {remoteFolder === f.name && (
+                        <span className="text-xs text-muted-foreground">
+                          {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="px-1 text-xs text-muted-foreground">{t("add.remoteHint")}</p>
+          </div>
+        )}
 
         {/* Name */}
         <div className="space-y-2">
@@ -385,7 +514,15 @@ export function AddCourseDialog({ onAdded }: Props) {
           <Button variant="ghost" onClick={() => setOpen(false)} className="rounded-xl">
             {t("btn.cancel")}
           </Button>
-          <Button onClick={submit} disabled={(!handle && !memoryFiles) || !name.trim() || scanning} className="rounded-xl">
+          <Button
+            onClick={submit}
+            disabled={
+              (mode === "local" && !handle && !memoryFiles) ||
+              (mode === "remote" && !remoteFolder) ||
+              !name.trim() || scanning
+            }
+            className="rounded-xl"
+          >
             {scanning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {scanning && progressMsg ? progressMsg : t("btn.create")}
           </Button>

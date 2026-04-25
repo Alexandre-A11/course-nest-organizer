@@ -1,0 +1,20 @@
+# Course Vault LAN sync server.
+# Usage:
+#   1. Put your course folders inside ./courses/  (one folder per course).
+#   2. docker compose up -d
+#   3. In the app, open Settings → Servidor and point it to
+#      http://<this-machine-LAN-IP>:8787
+services:
+  course-vault:
+    build: .
+    image: course-vault-server:latest
+    container_name: course-vault
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./data:/data
+      - ./courses:/courses
+    environment:
+      # Override if you want a different port inside the container.
+      PORT: 8787
