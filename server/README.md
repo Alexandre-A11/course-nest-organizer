@@ -1,13 +1,14 @@
-# Course Vault — LAN Sync Server
+# Course Vault — Self-hosted (single container)
 
-Optional self-hosted server that lets multiple browsers / devices on your local
-network share the **same Course Vault library**: progress, notes, categories,
-watched flags **and the actual course files** (videos, PDFs, audio…) — without
-any cloud or per-browser folder reselection.
+Optional self-hosted **single-container** deployment that ships both the web
+app (frontend) and the LAN sync + media-streaming backend in one Docker
+image. Multiple browsers / devices on your local network share the same
+library — progress, notes, categories, watched flags **and the actual course
+files** (videos, PDFs, audio…) — without any cloud, per-browser folder
+reselection, or separate frontend deploy.
 
 The web app continues to work 100% offline against IndexedDB; the server is
-just an **optional sync target** that becomes the source of truth when
-configured.
+the single source of truth when you open the bundled URL.
 
 ---
 
@@ -38,29 +39,47 @@ server/
 
 ## 3. Run it
 
+The Docker build context must be the **repo root** (so the frontend sources
+are visible to the build). The compose file already handles that:
+
 ```bash
 cd server
-docker compose up -d
+docker compose up -d --build
 ```
 
-First start takes ~1 minute (it compiles `better-sqlite3`). After that:
+First build takes 2–3 minutes (Vite frontend build + native `better-sqlite3`
+compilation). After that:
 
 ```
 [course-vault-server] v1.0.0 listening on :8787
 ```
 
-Find the LAN IP of the host (e.g. `192.168.1.50`) and verify:
+Find the LAN IP of the host (e.g. `192.168.1.50`) and open it in any browser:
+
+```
+http://192.168.1.50:8787
+```
+
+The web app loads instantly — **no separate frontend deploy needed**. The
+browser auto-detects that it was served from the Course Vault server and
+starts syncing automatically.
+
+API health check:
 
 ```
 http://192.168.1.50:8787/health
 → { "ok": true, "version": "1.0.0", "coursesDir": "/courses" }
 ```
 
-## 4. Connect the app
+## 4. Open it from any device
 
-In any browser/device on the same network, open the Course Vault web app and
-go to the **server icon** in the top bar (database/cloud icon) → enter
-`http://192.168.1.50:8787` and **Conectar**.
+On any browser/device on the same network, open `http://<host-ip>:8787`. The
+frontend served by the container automatically uses the same origin as its
+sync server — no manual configuration needed.
+
+If you'd rather run the frontend somewhere else (e.g. Vercel) and only point
+to this container as the API, use the **server icon** in the top bar to enter
+`http://192.168.1.50:8787` manually.
 
 - The app pulls the server library on connect.
 - Local changes (mark watched, notes, progress…) sync to the server every few
@@ -70,10 +89,12 @@ go to the **server icon** in the top bar (database/cloud icon) → enter
 
 ## 5. Adding a course
 
-On the home page choose **Adicionar curso → Do servidor** and pick one of the
-folders the server detected inside `/courses`. The folder scan happens on the
-server; videos and PDFs are streamed via HTTP `Range` requests, so seeking
-works the same as a local file.
+On the home page choose **Adicionar curso → Do servidor** and browse the
+folder tree the server detected inside `/courses`. **Subfolders are
+supported** — click the `›` chevron to drill into a subfolder, or click the
+folder name to pick it as a course. The folder scan happens on the server;
+videos and PDFs are streamed via HTTP `Range` requests, so seeking works the
+same as a local file.
 
 ## 6. Endpoints (for reference)
 
@@ -82,9 +103,9 @@ works the same as a local file.
 | GET    | `/health`                     | Liveness check                       |
 | GET    | `/library`                    | Full snapshot (courses, files, …)    |
 | POST   | `/sync`                       | Last-write-wins merge of a snapshot  |
-| GET    | `/folders`                    | Top-level folders inside `/courses`  |
-| GET    | `/folders/:folder/scan`       | Recursive listing of a folder        |
-| GET    | `/stream/:folder/<rel-path>`  | Stream a file (Range supported)      |
+| GET    | `/folders[?parent=Foo/Bar]`   | List folders (drill-down with parent)|
+| GET    | `/folders-scan/<folder-path>` | Recursive listing of a folder        |
+| GET    | `/stream/<folder>/<rel-path>` | Stream a file (Range supported)      |
 
 ## 7. Security note
 
