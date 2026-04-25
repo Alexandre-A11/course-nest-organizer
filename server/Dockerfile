@@ -37,10 +37,10 @@ RUN npm install --omit=dev --build-from-source --no-audit --no-fund
 # Backend source
 COPY server/src ./src
 
-# Static frontend bundle from the previous stage. We pick whichever folder
-# the Vite/TanStack build produced (commonly dist/ or .output/public).
-# At runtime, server/src/index.js auto-detects /app/public and serves it.
-COPY --from=frontend /app/dist ./public
+# Static frontend bundle from the previous stage. The Vite/TanStack build
+# emits the client SPA into dist/client/ — that's what the Express server
+# serves as the web app. server/src/index.js auto-detects /app/public.
+COPY --from=frontend /app/dist/client ./public
 
 VOLUME ["/data", "/courses"]
 
