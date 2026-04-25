@@ -378,3 +378,46 @@ function Feature({ icon: Icon, title, desc }: { icon: typeof Sparkles; title: st
     </div>
   );
 }
+
+// ---- Cheap structural equality so silent sync refreshes don't churn state ----
+
+function courseFingerprint(c: Course): string {
+  return [
+    c.id, c.name, c.description ?? "", c.color, c.category ?? "",
+    c.banner ? "B" : "-", c.lastFileId ?? "", c.lastAccessedAt ?? 0,
+    c.updatedAt ?? c.createdAt ?? 0,
+  ].join("|");
+}
+
+function sameCourses(a: Course[], b: Course[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (courseFingerprint(a[i]) !== courseFingerprint(b[i])) return false;
+  }
+  return true;
+}
+
+function fileFingerprint(f: CourseFileMeta): string {
+  return [
+    f.id, f.watched ? 1 : 0, f.watchedAt ?? 0,
+    f.progress ?? 0, f.comment ? "C" : "-",
+    f.updatedAt ?? 0,
+  ].join("|");
+}
+
+function sameFilesMap(
+  a: Record<string, CourseFileMeta[]>,
+  b: Record<string, CourseFileMeta[]>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    const av = a[k]; const bv = b[k];
+    if (!bv || av.length !== bv.length) return false;
+    for (let i = 0; i < av.length; i++) {
+      if (fileFingerprint(av[i]) !== fileFingerprint(bv[i])) return false;
+    }
+  }
+  return true;
+}
