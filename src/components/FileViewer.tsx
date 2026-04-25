@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, File as FileIcon,
   FolderTree, Gauge, Copy, Check, FileDown, EyeOff, Eye, Pause, Play,
+  Maximize2, Minimize2, Tv, Monitor,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,10 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 const SPEED_KEY = "course-vault.playbackRate";
 const NOTES_WIDTH_KEY = "course-vault.notesWidth";
 const PAUSE_ON_TYPE_KEY = "course-vault.pauseOnType";
+const VIEW_MODE_KEY = "course-vault.viewMode";
+
+/** "normal" = layout padrão, "theater" = vídeo ocupa toda a área (fundo preto, sem notas), "fullscreen" = navegador em fullscreen */
+type ViewMode = "normal" | "theater";
 
 const DEFAULT_NOTES_WIDTH = 420;
 const MIN_NOTES_WIDTH = 280;
