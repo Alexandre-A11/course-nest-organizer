@@ -266,6 +266,36 @@ export function AddCourseDialog({ onAdded }: Props) {
           </div>
         )}
 
+        {/* Mode tabs (only shown when a server is configured) */}
+        {serverUrl && (
+          <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() => setMode("local")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                mode === "local"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <HardDrive className="h-3.5 w-3.5" /> {t("add.modeLocal")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("remote")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                mode === "remote"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Server className="h-3.5 w-3.5" /> {t("add.modeRemote")}
+            </button>
+          </div>
+        )}
+
         <input
           ref={fallbackInputRef}
           type="file"
