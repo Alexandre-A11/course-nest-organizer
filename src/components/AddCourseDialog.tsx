@@ -339,6 +339,7 @@ export function AddCourseDialog({ onAdded }: Props) {
         </div>
 
         {/* Folder */}
+        {mode === "local" && (
         <div className="space-y-2">
           <Label>{t("field.folder")}</Label>
           <button
@@ -391,6 +392,45 @@ export function AddCourseDialog({ onAdded }: Props) {
             </div>
           )}
         </div>
+        )}
+
+        {mode === "remote" && (
+          <div className="space-y-2">
+            <Label>{t("add.remoteLabel")}</Label>
+            <div className="rounded-xl border border-border bg-muted/30">
+              {loadingFolders ? (
+                <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("add.remoteLoading")}
+                </div>
+              ) : !serverFolders || serverFolders.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">{t("add.remoteEmpty")}</p>
+              ) : (
+                <div className="max-h-56 overflow-y-auto">
+                  {serverFolders.map((f) => (
+                    <button
+                      key={f.name}
+                      type="button"
+                      onClick={() => pickRemoteFolder(f.name)}
+                      className={cn(
+                        "flex w-full items-center gap-2 border-b border-border/50 px-3 py-2 text-left text-sm transition-colors hover:bg-primary-soft/40 last:border-b-0",
+                        remoteFolder === f.name && "bg-primary-soft/60 text-primary",
+                      )}
+                    >
+                      <Folder className="h-4 w-4 text-primary" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      {remoteFolder === f.name && (
+                        <span className="text-xs text-muted-foreground">
+                          {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className="px-1 text-xs text-muted-foreground">{t("add.remoteHint")}</p>
+          </div>
+        )}
 
         {/* Name */}
         <div className="space-y-2">
