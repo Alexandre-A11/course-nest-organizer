@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
-  Settings2, HardDrive, Server, Folder,
+  Settings2, HardDrive, Server, Folder, ChevronRight, FolderTree, Check,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
@@ -18,7 +18,7 @@ import {
   saveCourse, upsertFiles, putFileBlobs, type Course,
 } from "@/lib/db";
 import {
-  getServerUrl, listServerFolders, scanServerFolder,
+  getServerUrl, listServerFolders, scanServerFolder, type RemoteFolder,
 } from "@/lib/syncClient";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
@@ -39,8 +39,10 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"local" | "remote">("local");
   const [serverUrl, setServerUrl] = useState<string | null>(null);
-  const [serverFolders, setServerFolders] = useState<{ name: string }[] | null>(null);
-  const [remoteFolder, setRemoteFolder] = useState<string | null>(null);
+  const [remoteParent, setRemoteParent] = useState<string>(""); // current dir
+  const [serverFolders, setServerFolders] = useState<RemoteFolder[] | null>(null);
+  const [remoteFolder, setRemoteFolder] = useState<string | null>(null); // selected folder path
+  const [remoteFolderName, setRemoteFolderName] = useState<string>("");
   const [remoteFileCount, setRemoteFileCount] = useState(0);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [name, setName] = useState("");
@@ -71,7 +73,8 @@ export function AddCourseDialog({ onAdded }: Props) {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
     setKeepOffline(false); setProgressMsg(null);
-    setRemoteFolder(null); setRemoteFileCount(0);
+    setRemoteFolder(null); setRemoteFolderName(""); setRemoteFileCount(0);
+    setRemoteParent("");
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
   };
 
@@ -82,7 +85,7 @@ export function AddCourseDialog({ onAdded }: Props) {
     setServerUrl(u);
     if (u) {
       setLoadingFolders(true);
-      listServerFolders()
+      listServerFolders("")
         .then((f) => setServerFolders(f))
         .catch(() => setServerFolders([]))
         .finally(() => setLoadingFolders(false));
@@ -92,17 +95,53 @@ export function AddCourseDialog({ onAdded }: Props) {
     }
   }, [open]);
 
-  const pickRemoteFolder = async (folder: string) => {
-    setRemoteFolder(folder);
-    if (!name) setName(folder);
+  /** Navigate into a subfolder (drill-down). */
+  const navigateInto = async (folderPath: string) => {
+    setRemoteParent(folderPath);
+    setLoadingFolders(true);
     try {
-      const { files } = await scanServerFolder(folder);
+      const list = await listServerFolders(folderPath);
+      setServerFolders(list);
+    } catch {
+      setServerFolders([]);
+    } finally {
+      setLoadingFolders(false);
+    }
+  };
+
+  /** Select a folder as the course root. */
+  const pickRemoteFolder = async (folder: RemoteFolder) => {
+    setRemoteFolder(folder.path);
+    setRemoteFolderName(folder.name);
+    if (!name) setName(folder.name);
+    try {
+      const { files } = await scanServerFolder(folder.path);
       setRemoteFileCount(files.length);
     } catch {
       setRemoteFileCount(0);
       toast.error(t("toast.openErr"));
     }
   };
+
+  /** Select the CURRENT directory itself as the course root. */
+  const pickCurrentAsCourse = async () => {
+    if (!remoteParent) return;
+    const segs = remoteParent.split("/");
+    const folder: RemoteFolder = {
+      name: segs[segs.length - 1],
+      path: remoteParent,
+      hasChildren: false,
+    };
+    await pickRemoteFolder(folder);
+  };
+
+  // Breadcrumb segments for the current parent path.
+  const breadcrumbs = remoteParent
+    ? remoteParent.split("/").map((seg, idx, arr) => ({
+        label: seg,
+        path: arr.slice(0, idx + 1).join("/"),
+      }))
+    : [];
 
   const pickFolder = async () => {
     if (!supported) {
