@@ -268,7 +268,10 @@ function mimeFor(name) {
   return MIME[ext] || "application/octet-stream";
 }
 
-// /stream/:folder/<rel/path/to/file.ext>  — supports HTTP Range
+// /stream/<folder-path>/<rel/path/to/file.ext>
+// Both segments are URL-encoded; folder-path itself may contain encoded "/".
+// Example:
+//   /stream/Math%2FCalc1/Week3/intro.mp4
 app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
   try {
     const folder = decodeURIComponent(req.params[0]);
