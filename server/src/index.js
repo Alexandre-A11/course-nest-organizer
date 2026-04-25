@@ -179,19 +179,34 @@ function getKind(name) {
   return "other";
 }
 
-app.get("/folders", async (_req, res) => {
+/**
+ * GET /folders                       → top-level folders inside COURSES_DIR
+ * GET /folders?parent=Foo/Bar        → direct children of Foo/Bar
+ * Each entry includes a flag indicating whether it has further subdirectories,
+ * so the UI can build a drill-down tree.
+ */
+app.get("/folders", async (req, res) => {
   try {
-    const entries = await readdir(COURSES_DIR, { withFileTypes: true });
+    const parent = typeof req.query.parent === "string" ? req.query.parent : "";
+    const dir = parent ? safeJoin(COURSES_DIR, parent) : COURSES_DIR;
+    const entries = await readdir(dir, { withFileTypes: true });
     const out = [];
     for (const e of entries) {
       if (!e.isDirectory()) continue;
       if (e.name.startsWith(".")) continue;
-      out.push({ name: e.name });
+      // Probe for subdirectories so the client can show a chevron.
+      let hasChildren = false;
+      try {
+        const sub = await readdir(path.join(dir, e.name), { withFileTypes: true });
+        hasChildren = sub.some((s) => s.isDirectory() && !s.name.startsWith("."));
+      } catch { /* ignore unreadable */ }
+      const rel = parent ? `${parent}/${e.name}` : e.name;
+      out.push({ name: e.name, path: rel, hasChildren });
     }
     out.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
-    res.json({ folders: out });
+    res.json({ folders: out, parent });
   } catch (err) {
-    res.status(500).json({ error: String(err?.message || err) });
+    res.status(404).json({ error: String(err?.message || err) });
   }
 });
 
@@ -214,6 +229,20 @@ async function walk(absDir, relPrefix = "") {
   return out;
 }
 
+// Splat scan supports nested folder paths (e.g. /folders-scan/Math/Calc1/Week3)
+app.get(/^\/folders-scan\/(.+)$/, async (req, res) => {
+  try {
+    const folder = decodeURIComponent(req.params[0]);
+    const dir = safeJoin(COURSES_DIR, folder);
+    const files = await walk(dir);
+    files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
+    res.json({ files });
+  } catch (err) {
+    res.status(404).json({ error: String(err?.message || err) });
+  }
+});
+
+// Backwards-compatible single-segment alias.
 app.get("/folders/:folder/scan", async (req, res) => {
   try {
     const dir = safeJoin(COURSES_DIR, req.params.folder);
