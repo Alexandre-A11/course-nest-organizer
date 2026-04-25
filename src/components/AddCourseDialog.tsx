@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
-  Settings2, HardDrive,
+  Settings2, HardDrive, Server, Folder,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
@@ -17,6 +17,9 @@ import {
 import {
   saveCourse, upsertFiles, putFileBlobs, type Course,
 } from "@/lib/db";
+import {
+  getServerUrl, listServerFolders, scanServerFolder,
+} from "@/lib/syncClient";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
@@ -34,6 +37,12 @@ interface Props {
 export function AddCourseDialog({ onAdded }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"local" | "remote">("local");
+  const [serverUrl, setServerUrl] = useState<string | null>(null);
+  const [serverFolders, setServerFolders] = useState<{ name: string }[] | null>(null);
+  const [remoteFolder, setRemoteFolder] = useState<string | null>(null);
+  const [remoteFileCount, setRemoteFileCount] = useState(0);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -62,7 +71,37 @@ export function AddCourseDialog({ onAdded }: Props) {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
     setKeepOffline(false); setProgressMsg(null);
+    setRemoteFolder(null); setRemoteFileCount(0);
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
+  };
+
+  // When opening, refresh server availability + folder list.
+  useEffect(() => {
+    if (!open) return;
+    const u = getServerUrl();
+    setServerUrl(u);
+    if (u) {
+      setLoadingFolders(true);
+      listServerFolders()
+        .then((f) => setServerFolders(f))
+        .catch(() => setServerFolders([]))
+        .finally(() => setLoadingFolders(false));
+    } else {
+      setMode("local");
+      setServerFolders(null);
+    }
+  }, [open]);
+
+  const pickRemoteFolder = async (folder: string) => {
+    setRemoteFolder(folder);
+    if (!name) setName(folder);
+    try {
+      const { files } = await scanServerFolder(folder);
+      setRemoteFileCount(files.length);
+    } catch {
+      setRemoteFileCount(0);
+      toast.error(t("toast.openErr"));
+    }
   };
 
   const pickFolder = async () => {
@@ -116,7 +155,9 @@ export function AddCourseDialog({ onAdded }: Props) {
   };
 
   const submit = async () => {
-    if ((!handle && !memoryFiles) || !name.trim()) return;
+    if (mode === "local" && (!handle && !memoryFiles)) return;
+    if (mode === "remote" && !remoteFolder) return;
+    if (!name.trim()) return;
     setScanning(true);
     const id = crypto.randomUUID();
 
@@ -125,7 +166,25 @@ export function AddCourseDialog({ onAdded }: Props) {
 
     let scannedCount = 0;
 
-    if (handle) {
+    if (mode === "remote" && remoteFolder) {
+      const course: Course = {
+        id, name: name.trim(),
+        description: description.trim() || undefined,
+        createdAt: Date.now(),
+        source: "remote",
+        remoteFolder,
+        color,
+        category: category || undefined,
+        banner,
+      };
+      await saveCourse(course);
+      const { files } = await scanServerFolder(remoteFolder);
+      const metas = mergeScanWithMeta(id, files.map((f) => ({
+        path: f.path, name: f.name, size: f.size, kind: getKind(f.name),
+      })), []);
+      await upsertFiles(metas);
+      scannedCount = metas.length;
+    } else if (handle) {
       const course: Course = {
         id, name: name.trim(),
         description: description.trim() || undefined,
