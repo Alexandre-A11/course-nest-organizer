@@ -22,6 +22,7 @@ import { readdir, stat } from "node:fs/promises";
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = process.env.DATA_DIR || path.resolve("./data");
 const COURSES_DIR = process.env.COURSES_DIR || path.resolve("./courses");
+const PUBLIC_DIR = process.env.PUBLIC_DIR || path.resolve("./public");
 const VERSION = "1.0.0";
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -179,19 +180,34 @@ function getKind(name) {
   return "other";
 }
 
-app.get("/folders", async (_req, res) => {
+/**
+ * GET /folders                       → top-level folders inside COURSES_DIR
+ * GET /folders?parent=Foo/Bar        → direct children of Foo/Bar
+ * Each entry includes a flag indicating whether it has further subdirectories,
+ * so the UI can build a drill-down tree.
+ */
+app.get("/folders", async (req, res) => {
   try {
-    const entries = await readdir(COURSES_DIR, { withFileTypes: true });
+    const parent = typeof req.query.parent === "string" ? req.query.parent : "";
+    const dir = parent ? safeJoin(COURSES_DIR, parent) : COURSES_DIR;
+    const entries = await readdir(dir, { withFileTypes: true });
     const out = [];
     for (const e of entries) {
       if (!e.isDirectory()) continue;
       if (e.name.startsWith(".")) continue;
-      out.push({ name: e.name });
+      // Probe for subdirectories so the client can show a chevron.
+      let hasChildren = false;
+      try {
+        const sub = await readdir(path.join(dir, e.name), { withFileTypes: true });
+        hasChildren = sub.some((s) => s.isDirectory() && !s.name.startsWith("."));
+      } catch { /* ignore unreadable */ }
+      const rel = parent ? `${parent}/${e.name}` : e.name;
+      out.push({ name: e.name, path: rel, hasChildren });
     }
     out.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
-    res.json({ folders: out });
+    res.json({ folders: out, parent });
   } catch (err) {
-    res.status(500).json({ error: String(err?.message || err) });
+    res.status(404).json({ error: String(err?.message || err) });
   }
 });
 
@@ -214,6 +230,20 @@ async function walk(absDir, relPrefix = "") {
   return out;
 }
 
+// Splat scan supports nested folder paths (e.g. /folders-scan/Math/Calc1/Week3)
+app.get(/^\/folders-scan\/(.+)$/, async (req, res) => {
+  try {
+    const folder = decodeURIComponent(req.params[0]);
+    const dir = safeJoin(COURSES_DIR, folder);
+    const files = await walk(dir);
+    files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
+    res.json({ files });
+  } catch (err) {
+    res.status(404).json({ error: String(err?.message || err) });
+  }
+});
+
+// Backwards-compatible single-segment alias.
 app.get("/folders/:folder/scan", async (req, res) => {
   try {
     const dir = safeJoin(COURSES_DIR, req.params.folder);
@@ -239,7 +269,10 @@ function mimeFor(name) {
   return MIME[ext] || "application/octet-stream";
 }
 
-// /stream/:folder/<rel/path/to/file.ext>  — supports HTTP Range
+// /stream/<folder-path>/<rel/path/to/file.ext>
+// Both segments are URL-encoded; folder-path itself may contain encoded "/".
+// Example:
+//   /stream/Math%2FCalc1/Week3/intro.mp4
 app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
   try {
     const folder = decodeURIComponent(req.params[0]);
@@ -275,8 +308,39 @@ app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
   }
 });
 
+// ---------------- Static frontend (SPA) ----------------
+// When PUBLIC_DIR exists (single-container deploy), serve the built web app.
+// API routes are registered ABOVE this block so they win over the SPA fallback.
+if (fs.existsSync(PUBLIC_DIR)) {
+  // Cache hashed assets aggressively, never the entry HTML.
+  app.use(express.static(PUBLIC_DIR, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".html")) {
+        res.setHeader("Cache-Control", "no-cache");
+      } else {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  }));
+  // SPA fallback: serve index.html for anything that didn't match an API route.
+  app.get(/^(?!\/(health|library|sync|folders|folders-scan|stream)\b).*/, (_req, res) => {
+    const indexFile = path.join(PUBLIC_DIR, "index.html");
+    if (fs.existsSync(indexFile)) {
+      res.sendFile(indexFile);
+    } else {
+      res.status(404).send("Frontend bundle not found");
+    }
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`[course-vault-server] v${VERSION} listening on :${PORT}`);
   console.log(`  data dir   : ${DATA_DIR}`);
   console.log(`  courses dir: ${COURSES_DIR}`);
+  if (fs.existsSync(PUBLIC_DIR)) {
+    console.log(`  public dir : ${PUBLIC_DIR} (frontend served at /)`);
+  } else {
+    console.log(`  public dir : <none> (API-only mode)`);
+  }
 });

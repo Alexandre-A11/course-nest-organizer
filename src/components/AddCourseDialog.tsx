@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
   FolderPlus, FolderOpen, Loader2, Info, ImagePlus, Trash2, X,
-  Settings2, HardDrive, Server, Folder,
+  Settings2, HardDrive, Server, Folder, ChevronRight, FolderTree, Check,
 } from "lucide-react";
 import {
   isFsAccessSupported, scanDirectory, scanFileList, mergeScanWithMeta, getKind,
@@ -18,7 +18,7 @@ import {
   saveCourse, upsertFiles, putFileBlobs, type Course,
 } from "@/lib/db";
 import {
-  getServerUrl, listServerFolders, scanServerFolder,
+  getServerUrl, listServerFolders, scanServerFolder, type RemoteFolder,
 } from "@/lib/syncClient";
 import { setCourseFiles } from "@/lib/sessionFiles";
 import { useCategories } from "@/hooks/use-categories";
@@ -39,8 +39,10 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"local" | "remote">("local");
   const [serverUrl, setServerUrl] = useState<string | null>(null);
-  const [serverFolders, setServerFolders] = useState<{ name: string }[] | null>(null);
-  const [remoteFolder, setRemoteFolder] = useState<string | null>(null);
+  const [remoteParent, setRemoteParent] = useState<string>(""); // current dir
+  const [serverFolders, setServerFolders] = useState<RemoteFolder[] | null>(null);
+  const [remoteFolder, setRemoteFolder] = useState<string | null>(null); // selected folder path
+  const [remoteFolderName, setRemoteFolderName] = useState<string>("");
   const [remoteFileCount, setRemoteFileCount] = useState(0);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [name, setName] = useState("");
@@ -53,8 +55,13 @@ export function AddCourseDialog({ onAdded }: Props) {
   const [rootName, setRootName] = useState<string>("");
   const [scanning, setScanning] = useState(false);
   const [fileCount, setFileCount] = useState(0);
-  /** When true (only meaningful in non-FSA browsers), copy files into IDB. */
-  const [keepOffline, setKeepOffline] = useState(false);
+  /**
+   * When true (only meaningful in non-FSA browsers like Firefox/Safari), copy
+   * files into IndexedDB so the user doesn't have to re-pick the folder every
+   * session. We default to true on those browsers since otherwise the only
+   * way back to the course is to re-open the folder picker each time.
+   */
+  const [keepOffline, setKeepOffline] = useState<boolean>(() => !isFsAccessSupported());
   const [progressMsg, setProgressMsg] = useState<string | null>(null);
   const [manageCats, setManageCats] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +78,8 @@ export function AddCourseDialog({ onAdded }: Props) {
     setName(""); setDescription(""); setHandle(null); setMemoryFiles(null);
     setRootName(""); setFileCount(0); setCategory(undefined); setBanner(undefined);
     setKeepOffline(false); setProgressMsg(null);
-    setRemoteFolder(null); setRemoteFileCount(0);
+    setRemoteFolder(null); setRemoteFolderName(""); setRemoteFileCount(0);
+    setRemoteParent("");
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
   };
 
@@ -82,7 +90,7 @@ export function AddCourseDialog({ onAdded }: Props) {
     setServerUrl(u);
     if (u) {
       setLoadingFolders(true);
-      listServerFolders()
+      listServerFolders("")
         .then((f) => setServerFolders(f))
         .catch(() => setServerFolders([]))
         .finally(() => setLoadingFolders(false));
@@ -92,17 +100,53 @@ export function AddCourseDialog({ onAdded }: Props) {
     }
   }, [open]);
 
-  const pickRemoteFolder = async (folder: string) => {
-    setRemoteFolder(folder);
-    if (!name) setName(folder);
+  /** Navigate into a subfolder (drill-down). */
+  const navigateInto = async (folderPath: string) => {
+    setRemoteParent(folderPath);
+    setLoadingFolders(true);
     try {
-      const { files } = await scanServerFolder(folder);
+      const list = await listServerFolders(folderPath);
+      setServerFolders(list);
+    } catch {
+      setServerFolders([]);
+    } finally {
+      setLoadingFolders(false);
+    }
+  };
+
+  /** Select a folder as the course root. */
+  const pickRemoteFolder = async (folder: RemoteFolder) => {
+    setRemoteFolder(folder.path);
+    setRemoteFolderName(folder.name);
+    if (!name) setName(folder.name);
+    try {
+      const { files } = await scanServerFolder(folder.path);
       setRemoteFileCount(files.length);
     } catch {
       setRemoteFileCount(0);
       toast.error(t("toast.openErr"));
     }
   };
+
+  /** Select the CURRENT directory itself as the course root. */
+  const pickCurrentAsCourse = async () => {
+    if (!remoteParent) return;
+    const segs = remoteParent.split("/");
+    const folder: RemoteFolder = {
+      name: segs[segs.length - 1],
+      path: remoteParent,
+      hasChildren: false,
+    };
+    await pickRemoteFolder(folder);
+  };
+
+  // Breadcrumb segments for the current parent path.
+  const breadcrumbs = remoteParent
+    ? remoteParent.split("/").map((seg, idx, arr) => ({
+        label: seg,
+        path: arr.slice(0, idx + 1).join("/"),
+      }))
+    : [];
 
   const pickFolder = async () => {
     if (!supported) {
@@ -397,33 +441,101 @@ export function AddCourseDialog({ onAdded }: Props) {
         {mode === "remote" && (
           <div className="space-y-2">
             <Label>{t("add.remoteLabel")}</Label>
+            {/* Breadcrumb navigation for nested folders */}
+            <div className="flex flex-wrap items-center gap-1 text-xs">
+              <button
+                type="button"
+                onClick={() => navigateInto("")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
+                  !remoteParent && "font-semibold text-foreground",
+                )}
+              >
+                <FolderTree className="h-3 w-3" /> /courses
+              </button>
+              {breadcrumbs.map((b, i) => (
+                <span key={b.path} className="flex items-center gap-1">
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  <button
+                    type="button"
+                    onClick={() => navigateInto(b.path)}
+                    className={cn(
+                      "rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
+                      i === breadcrumbs.length - 1 && "font-semibold text-foreground",
+                    )}
+                  >
+                    {b.label}
+                  </button>
+                </span>
+              ))}
+              {remoteParent && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={pickCurrentAsCourse}
+                  className={cn(
+                    "ml-auto h-6 gap-1 rounded-md px-2 text-[11px]",
+                    remoteFolder === remoteParent && "border-primary/40 bg-primary-soft text-primary",
+                  )}
+                  title={t("add.remotePickCurrent")}
+                >
+                  {remoteFolder === remoteParent ? <Check className="h-3 w-3" /> : <Folder className="h-3 w-3" />}
+                  {t("add.remotePickCurrentShort")}
+                </Button>
+              )}
+            </div>
             <div className="rounded-xl border border-border bg-muted/30">
               {loadingFolders ? (
                 <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("add.remoteLoading")}
                 </div>
               ) : !serverFolders || serverFolders.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">{t("add.remoteEmpty")}</p>
+                <p className="p-4 text-sm text-muted-foreground">
+                  {remoteParent ? t("add.remoteEmptySub") : t("add.remoteEmpty")}
+                </p>
               ) : (
                 <div className="max-h-56 overflow-y-auto">
                   {serverFolders.map((f) => (
-                    <button
-                      key={f.name}
-                      type="button"
-                      onClick={() => pickRemoteFolder(f.name)}
+                    <div
+                      key={f.path}
                       className={cn(
-                        "flex w-full items-center gap-2 border-b border-border/50 px-3 py-2 text-left text-sm transition-colors hover:bg-primary-soft/40 last:border-b-0",
-                        remoteFolder === f.name && "bg-primary-soft/60 text-primary",
+                        "flex items-center gap-1 border-b border-border/50 px-2 py-1.5 transition-colors last:border-b-0",
+                        remoteFolder === f.path && "bg-primary-soft/60",
                       )}
                     >
-                      <Folder className="h-4 w-4 text-primary" />
-                      <span className="flex-1 truncate">{f.name}</span>
-                      {remoteFolder === f.name && (
-                        <span className="text-xs text-muted-foreground">
-                          {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}
-                        </span>
+                      <button
+                        type="button"
+                        onClick={() => pickRemoteFolder(f)}
+                        className={cn(
+                          "flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-primary-soft/40",
+                          remoteFolder === f.path && "text-primary",
+                        )}
+                        title={t("add.remotePickFolder")}
+                      >
+                        {remoteFolder === f.path ? (
+                          <Check className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Folder className="h-4 w-4 text-primary" />
+                        )}
+                        <span className="flex-1 truncate">{f.name}</span>
+                        {remoteFolder === f.path && (
+                          <span className="text-xs text-muted-foreground">
+                            {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}
+                          </span>
+                        )}
+                      </button>
+                      {f.hasChildren && (
+                        <button
+                          type="button"
+                          onClick={() => navigateInto(f.path)}
+                          title={t("add.remoteOpenFolder")}
+                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}

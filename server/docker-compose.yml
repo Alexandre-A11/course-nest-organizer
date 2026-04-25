@@ -1,20 +1,26 @@
-# Course Vault LAN sync server.
+# Course Vault — single-container deployment.
+# Serves the web app (frontend) AND the LAN sync + streaming server from one
+# image on port 8787.
+#
 # Usage:
-#   1. Put your course folders inside ./courses/  (one folder per course).
-#   2. docker compose up -d
-#   3. In the app, open Settings → Servidor and point it to
-#      http://<this-machine-LAN-IP>:8787
+#   1. Put your course folders inside ./courses/  (one folder per course;
+#      subfolders are scanned recursively).
+#   2. From the REPO ROOT (not this folder), or using the -f flag below:
+#        docker compose -f server/docker-compose.yml up -d --build
+#   3. Open http://<this-machine-LAN-IP>:8787 in any browser on your network.
+#      No separate frontend deploy needed — the same URL serves the app.
 services:
   course-vault:
-    build: .
-    image: course-vault-server:latest
+    build:
+      context: ..              # repo root, so the frontend sources are visible
+      dockerfile: server/Dockerfile
+    image: course-vault:latest
     container_name: course-vault
     restart: unless-stopped
     ports:
       - "8787:8787"
     volumes:
-      - ./data:/data
-      - ./courses:/courses
+      - ./data:/data           # SQLite database (sync metadata)
+      - ./courses:/courses     # Your course folders
     environment:
-      # Override if you want a different port inside the container.
       PORT: 8787

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, File as FileIcon,
   FolderTree, Gauge, Copy, Check, FileDown, EyeOff, Eye, Pause, Play,
+  Maximize2, Minimize2, Tv, Monitor,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,10 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 const SPEED_KEY = "course-vault.playbackRate";
 const NOTES_WIDTH_KEY = "course-vault.notesWidth";
 const PAUSE_ON_TYPE_KEY = "course-vault.pauseOnType";
+const VIEW_MODE_KEY = "course-vault.viewMode";
+
+/** "normal" = layout padrão, "theater" = vídeo ocupa toda a área (fundo preto, sem notas), "fullscreen" = navegador em fullscreen */
+type ViewMode = "normal" | "theater";
 
 const DEFAULT_NOTES_WIDTH = 420;
 const MIN_NOTES_WIDTH = 280;
@@ -45,6 +50,13 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const [savedFlash, setSavedFlash] = useState(false);
   const [pathCopied, setPathCopied] = useState(false);
   const [notesVisible, setNotesVisible] = usePref<"on" | "off">("notes.visible", "on");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "normal";
+    const v = window.localStorage.getItem(VIEW_MODE_KEY);
+    return v === "theater" ? "theater" : "normal";
+  });
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [pauseOnType, setPauseOnType] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(PAUSE_ON_TYPE_KEY) === "1";
@@ -162,6 +174,53 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       return next;
     });
   };
+
+  const toggleTheater = () => {
+    setViewMode((m) => {
+      const next: ViewMode = m === "theater" ? "normal" : "theater";
+      try { window.localStorage.setItem(VIEW_MODE_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const toggleFullscreen = async () => {
+    const el = containerRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await el.requestFullscreen();
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Mirror native fullscreen state.
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  // Keyboard shortcuts: F = fullscreen, T = theater (only for media files).
+  useEffect(() => {
+    if (file.kind !== "video" && file.kind !== "audio") return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Ignore when typing in inputs / contentEditable (notes).
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        void toggleFullscreen();
+      } else if (e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        toggleTheater();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.kind]);
 
   const toggleWatched = async () => {
     const updated = { ...file, watched: !file.watched, watchedAt: !file.watched ? Date.now() : undefined };
@@ -282,11 +341,27 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     toast.success(t("toast.notesExported", { format: format.toUpperCase() }));
   };
 
+  // Force-hide notes when in theater mode so the video can take the full area.
+  const showNotesEffective = showNotes && viewMode === "normal";
+
   return (
-    <div className="flex h-full flex-col md:flex-row">
+    <div
+      ref={containerRef}
+      className={cn(
+        "flex h-full flex-col md:flex-row",
+        viewMode === "theater" && "bg-black",
+        isFullscreen && "bg-black",
+      )}
+    >
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
+        <div
+          className={cn(
+            "flex flex-wrap items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4",
+            // Slimmer chrome in theater mode
+            viewMode === "theater" && "border-transparent bg-black/80 py-2 sm:py-2",
+          )}
+        >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground line-clamp-1">
@@ -347,6 +422,30 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {file.kind === "video" && (
+                  <>
+                    <Button
+                      variant={viewMode === "theater" ? "default" : "outline"}
+                      size="sm"
+                      onClick={toggleTheater}
+                      className="h-8 rounded-xl gap-1.5 px-2.5"
+                      title={viewMode === "theater" ? t("viewer.theaterOff") : t("viewer.theaterOn")}
+                    >
+                      {viewMode === "theater" ? <Monitor className="h-3.5 w-3.5" /> : <Tv className="h-3.5 w-3.5" />}
+                      <span className="hidden lg:inline">{t("viewer.theaterLabel")}</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void toggleFullscreen()}
+                      className="h-8 rounded-xl gap-1.5 px-2.5"
+                      title={isFullscreen ? t("viewer.fullscreenExit") : t("viewer.fullscreenEnter")}
+                    >
+                      {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                      <span className="hidden lg:inline">{t("viewer.fullscreenLabel")}</span>
+                    </Button>
+                  </>
+                )}
               </>
             )}
             <Button
@@ -376,7 +475,12 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
         </div>
 
         {/* Viewer */}
-        <div className="flex-1 overflow-auto bg-muted/30">
+        <div
+          className={cn(
+            "flex-1 overflow-auto",
+            viewMode === "theater" || isFullscreen ? "bg-black" : "bg-muted/30",
+          )}
+        >
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -394,6 +498,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
               onVideoEnded={handleVideoEnded}
               mediaRef={mediaRef}
               initialSpeed={speed}
+              fillStage={viewMode === "theater" || isFullscreen}
             resumeAt={resumeAtRef.current}
             onTimeUpdate={(sec) => {
               if (file.kind !== "video" && file.kind !== "audio") return;
@@ -414,7 +519,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       </div>
 
       {/* Notes sidebar (vertical only). On mobile (<md) it stacks below. */}
-      {showNotes && (
+      {showNotesEffective && (
         <>
           {/* Drag handle (visible on md+) */}
           <div
@@ -491,7 +596,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
 }
 
 function ViewerContent({
-  file, url, onVideoEnded, mediaRef, initialSpeed, resumeAt, onTimeUpdate, onPause,
+  file, url, onVideoEnded, mediaRef, initialSpeed, resumeAt, onTimeUpdate, onPause, fillStage,
 }: {
   file: CourseFileMeta;
   url: string;
@@ -501,6 +606,8 @@ function ViewerContent({
   resumeAt?: number | null;
   onTimeUpdate?: (sec: number) => void;
   onPause?: (sec: number) => void;
+  /** When true, the video fills the available stage area edge-to-edge (theater/fullscreen). */
+  fillStage?: boolean;
 }) {
   const handleLoaded = (el: HTMLMediaElement | null) => {
     if (!el) return;
@@ -517,13 +624,19 @@ function ViewerContent({
   };
   if (file.kind === "video") {
     return (
-      <div className="flex h-full items-center justify-center bg-black p-0 sm:p-6">
+      <div className={cn(
+        "flex h-full items-center justify-center bg-black",
+        fillStage ? "p-0" : "p-0 sm:p-6",
+      )}>
         <video
           key={url}
           ref={(el) => { mediaRef.current = el; }}
           src={url}
           controls
-          className="max-h-full max-w-full rounded-lg shadow-elevated"
+          className={cn(
+            "max-h-full max-w-full",
+            fillStage ? "h-full w-full" : "rounded-lg shadow-elevated",
+          )}
           onEnded={onVideoEnded}
           onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
           onTimeUpdate={onTU}

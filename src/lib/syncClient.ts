@@ -18,6 +18,12 @@ import {
 
 const URL_KEY = "course-vault.serverUrl";
 const LAST_SYNC_KEY = "course-vault.lastSyncAt";
+/**
+ * When the web app is being served from the Course Vault server itself
+ * (single-container Docker deploy), we auto-use the same origin as the API.
+ * This is detected by probing /health on window.location.origin at startup.
+ */
+const AUTO_DETECTED_KEY = "course-vault.autoServer";
 
 export type SyncStatus = "disabled" | "online" | "offline" | "syncing";
 
@@ -34,7 +40,33 @@ function notify() {
 
 export function getServerUrl(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(URL_KEY);
+  const explicit = window.localStorage.getItem(URL_KEY);
+  if (explicit) return explicit;
+  // Same-origin auto-detection (single-container deploy).
+  return window.localStorage.getItem(AUTO_DETECTED_KEY);
+}
+
+/**
+ * On startup, if we're not yet connected to a server, probe the current origin
+ * for /health. If it responds, treat it as the server URL automatically — this
+ * is the case when the user opens http://nas.local:8787 (Docker single-image).
+ */
+async function autoDetectSameOrigin(): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (window.localStorage.getItem(URL_KEY)) return; // user already chose
+  if (window.localStorage.getItem(AUTO_DETECTED_KEY)) return; // already detected
+  try {
+    const origin = window.location.origin;
+    // Don't probe on localhost dev (Vite) — the API isn't there.
+    if (/^(http:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return;
+    const res = await fetch(`${origin}/health`, { method: "GET" });
+    if (!res.ok) return;
+    const data = await res.json() as { ok?: boolean };
+    if (!data.ok) return;
+    window.localStorage.setItem(AUTO_DETECTED_KEY, origin);
+    startPolling();
+    void syncOnce();
+  } catch { /* ignore — no server here */ }
 }
 
 export function getStatus(): SyncStatus { return status; }
@@ -76,6 +108,7 @@ export async function connectServer(rawUrl: string): Promise<void> {
 export function disconnectServer(): void {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(URL_KEY);
+    window.localStorage.removeItem(AUTO_DETECTED_KEY);
     window.localStorage.removeItem(LAST_SYNC_KEY);
   }
   stopPolling();
@@ -226,21 +259,40 @@ export async function syncOnce(): Promise<void> {
 
 // ---- Server folder browsing (used by AddCourseDialog) ----
 
-export async function listServerFolders(): Promise<{ name: string }[]> {
-  const url = getServerUrl();
-  if (!url) throw new Error("no server");
-  const res = await fetch(`${url}/folders`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as { folders: { name: string }[] };
-  return data.folders;
+export interface RemoteFolder {
+  name: string;
+  /** Path relative to COURSES_DIR (e.g. "Math/Calc1"). */
+  path: string;
+  hasChildren: boolean;
 }
 
-export async function scanServerFolder(folder: string): Promise<{ files: { path: string; name: string; size: number; kind: string }[] }> {
+/** List direct children of `parent` (or COURSES_DIR root when omitted). */
+export async function listServerFolders(parent?: string): Promise<RemoteFolder[]> {
   const url = getServerUrl();
   if (!url) throw new Error("no server");
-  const res = await fetch(`${url}/folders/${encodeURIComponent(folder)}/scan`);
+  const qs = parent ? `?parent=${encodeURIComponent(parent)}` : "";
+  const res = await fetch(`${url}/folders${qs}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await res.json() as { folders: RemoteFolder[] };
+  // Older servers (pre-subfolder) returned { name } only; backfill.
+  return data.folders.map((f) => ({
+    name: f.name,
+    path: f.path ?? f.name,
+    hasChildren: !!f.hasChildren,
+  }));
+}
+
+export async function scanServerFolder(folderPath: string): Promise<{ files: { path: string; name: string; size: number; kind: string }[] }> {
+  const url = getServerUrl();
+  if (!url) throw new Error("no server");
+  // Use the splat endpoint that supports nested paths; URL-encode each segment.
+  const encoded = folderPath.split("/").map(encodeURIComponent).join("/");
+  const res = await fetch(`${url}/folders-scan/${encoded}`);
+  if (res.ok) return res.json();
+  // Fallback for legacy single-segment scan endpoint.
+  const legacy = await fetch(`${url}/folders/${encodeURIComponent(folderPath)}/scan`);
+  if (!legacy.ok) throw new Error(`HTTP ${legacy.status}`);
+  return legacy.json();
 }
 
 /** Build a streaming URL for a remote file. */
@@ -248,11 +300,19 @@ export function streamUrlFor(folder: string, relPath: string): string | null {
   const url = getServerUrl();
   if (!url) return null;
   const parts = relPath.split("/").map(encodeURIComponent).join("/");
+  // Folder may itself contain "/" — encode the WHOLE path as one segment.
   return `${url}/stream/${encodeURIComponent(folder)}/${parts}`;
 }
 
 // Auto-start on module load (browser only).
-if (typeof window !== "undefined" && getServerUrl()) {
+if (typeof window !== "undefined") {
   // Defer to next tick so React has a chance to mount listeners.
-  setTimeout(() => { startPolling(); void syncOnce(); }, 100);
+  setTimeout(() => {
+    if (getServerUrl()) {
+      startPolling();
+      void syncOnce();
+    } else {
+      void autoDetectSameOrigin();
+    }
+  }, 100);
 }

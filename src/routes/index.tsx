@@ -46,21 +46,36 @@ function Home() {
   const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  /**
+   * Reload courses + files. When `silent` is true (used by background sync),
+   * we don't toggle the loading skeleton and we only update state if the data
+   * actually changed — avoiding the visible "page refresh" the user noticed
+   * every 8 seconds and (more importantly) avoiding state churn that closes
+   * open dialogs / discards form input.
+   */
+  const load = useCallback(async (opts: { silent?: boolean } = {}) => {
+    if (!opts.silent) setLoading(true);
     const all = await listCourses();
-    setCourses(all);
     const map: Record<string, CourseFileMeta[]> = {};
     await Promise.all(all.map(async (c) => { map[c.id] = await listFiles(c.id); }));
-    setFilesByCourse(map);
-    setLoading(false);
+    if (opts.silent) {
+      // Cheap shallow-ish comparison on a small JSON payload: only re-render
+      // if something meaningfully changed.
+      setCourses((prev) => (sameCourses(prev, all) ? prev : all));
+      setFilesByCourse((prev) => (sameFilesMap(prev, map) ? prev : map));
+    } else {
+      setCourses(all);
+      setFilesByCourse(map);
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  // Refresh whenever the LAN sync layer pulls new data from the server.
+  // Background sync only triggers a *silent* refresh — no skeletons, no
+  // dialog reset, and no flicker if nothing changed.
   useEffect(() => {
-    const onSync = () => { void load(); };
+    const onSync = () => { void load({ silent: true }); };
     window.addEventListener("course-vault:synced", onSync);
     return () => window.removeEventListener("course-vault:synced", onSync);
   }, [load]);
@@ -362,4 +377,47 @@ function Feature({ icon: Icon, title, desc }: { icon: typeof Sparkles; title: st
       <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
     </div>
   );
+}
+
+// ---- Cheap structural equality so silent sync refreshes don't churn state ----
+
+function courseFingerprint(c: Course): string {
+  return [
+    c.id, c.name, c.description ?? "", c.color, c.category ?? "",
+    c.banner ? "B" : "-", c.lastFileId ?? "", c.lastAccessedAt ?? 0,
+    c.updatedAt ?? c.createdAt ?? 0,
+  ].join("|");
+}
+
+function sameCourses(a: Course[], b: Course[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (courseFingerprint(a[i]) !== courseFingerprint(b[i])) return false;
+  }
+  return true;
+}
+
+function fileFingerprint(f: CourseFileMeta): string {
+  return [
+    f.id, f.watched ? 1 : 0, f.watchedAt ?? 0,
+    f.progress ?? 0, f.comment ? "C" : "-",
+    f.updatedAt ?? 0,
+  ].join("|");
+}
+
+function sameFilesMap(
+  a: Record<string, CourseFileMeta[]>,
+  b: Record<string, CourseFileMeta[]>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    const av = a[k]; const bv = b[k];
+    if (!bv || av.length !== bv.length) return false;
+    for (let i = 0; i < av.length; i++) {
+      if (fileFingerprint(av[i]) !== fileFingerprint(bv[i])) return false;
+    }
+  }
+  return true;
 }
