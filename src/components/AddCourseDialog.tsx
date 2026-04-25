@@ -436,33 +436,101 @@ export function AddCourseDialog({ onAdded }: Props) {
         {mode === "remote" && (
           <div className="space-y-2">
             <Label>{t("add.remoteLabel")}</Label>
+            {/* Breadcrumb navigation for nested folders */}
+            <div className="flex flex-wrap items-center gap-1 text-xs">
+              <button
+                type="button"
+                onClick={() => navigateInto("")}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
+                  !remoteParent && "font-semibold text-foreground",
+                )}
+              >
+                <FolderTree className="h-3 w-3" /> /courses
+              </button>
+              {breadcrumbs.map((b, i) => (
+                <span key={b.path} className="flex items-center gap-1">
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  <button
+                    type="button"
+                    onClick={() => navigateInto(b.path)}
+                    className={cn(
+                      "rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
+                      i === breadcrumbs.length - 1 && "font-semibold text-foreground",
+                    )}
+                  >
+                    {b.label}
+                  </button>
+                </span>
+              ))}
+              {remoteParent && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={pickCurrentAsCourse}
+                  className={cn(
+                    "ml-auto h-6 gap-1 rounded-md px-2 text-[11px]",
+                    remoteFolder === remoteParent && "border-primary/40 bg-primary-soft text-primary",
+                  )}
+                  title={t("add.remotePickCurrent")}
+                >
+                  {remoteFolder === remoteParent ? <Check className="h-3 w-3" /> : <Folder className="h-3 w-3" />}
+                  {t("add.remotePickCurrentShort")}
+                </Button>
+              )}
+            </div>
             <div className="rounded-xl border border-border bg-muted/30">
               {loadingFolders ? (
                 <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("add.remoteLoading")}
                 </div>
               ) : !serverFolders || serverFolders.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">{t("add.remoteEmpty")}</p>
+                <p className="p-4 text-sm text-muted-foreground">
+                  {remoteParent ? t("add.remoteEmptySub") : t("add.remoteEmpty")}
+                </p>
               ) : (
                 <div className="max-h-56 overflow-y-auto">
                   {serverFolders.map((f) => (
-                    <button
-                      key={f.name}
-                      type="button"
-                      onClick={() => pickRemoteFolder(f.name)}
+                    <div
+                      key={f.path}
                       className={cn(
-                        "flex w-full items-center gap-2 border-b border-border/50 px-3 py-2 text-left text-sm transition-colors hover:bg-primary-soft/40 last:border-b-0",
-                        remoteFolder === f.name && "bg-primary-soft/60 text-primary",
+                        "flex items-center gap-1 border-b border-border/50 px-2 py-1.5 transition-colors last:border-b-0",
+                        remoteFolder === f.path && "bg-primary-soft/60",
                       )}
                     >
-                      <Folder className="h-4 w-4 text-primary" />
-                      <span className="flex-1 truncate">{f.name}</span>
-                      {remoteFolder === f.name && (
-                        <span className="text-xs text-muted-foreground">
-                          {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}
-                        </span>
+                      <button
+                        type="button"
+                        onClick={() => pickRemoteFolder(f)}
+                        className={cn(
+                          "flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-primary-soft/40",
+                          remoteFolder === f.path && "text-primary",
+                        )}
+                        title={t("add.remotePickFolder")}
+                      >
+                        {remoteFolder === f.path ? (
+                          <Check className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Folder className="h-4 w-4 text-primary" />
+                        )}
+                        <span className="flex-1 truncate">{f.name}</span>
+                        {remoteFolder === f.path && (
+                          <span className="text-xs text-muted-foreground">
+                            {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}
+                          </span>
+                        )}
+                      </button>
+                      {f.hasChildren && (
+                        <button
+                          type="button"
+                          onClick={() => navigateInto(f.path)}
+                          title={t("add.remoteOpenFolder")}
+                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
