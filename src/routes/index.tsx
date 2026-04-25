@@ -46,21 +46,36 @@ function Home() {
   const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  /**
+   * Reload courses + files. When `silent` is true (used by background sync),
+   * we don't toggle the loading skeleton and we only update state if the data
+   * actually changed — avoiding the visible "page refresh" the user noticed
+   * every 8 seconds and (more importantly) avoiding state churn that closes
+   * open dialogs / discards form input.
+   */
+  const load = useCallback(async (opts: { silent?: boolean } = {}) => {
+    if (!opts.silent) setLoading(true);
     const all = await listCourses();
-    setCourses(all);
     const map: Record<string, CourseFileMeta[]> = {};
     await Promise.all(all.map(async (c) => { map[c.id] = await listFiles(c.id); }));
-    setFilesByCourse(map);
-    setLoading(false);
+    if (opts.silent) {
+      // Cheap shallow-ish comparison on a small JSON payload: only re-render
+      // if something meaningfully changed.
+      setCourses((prev) => (sameCourses(prev, all) ? prev : all));
+      setFilesByCourse((prev) => (sameFilesMap(prev, map) ? prev : map));
+    } else {
+      setCourses(all);
+      setFilesByCourse(map);
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  // Refresh whenever the LAN sync layer pulls new data from the server.
+  // Background sync only triggers a *silent* refresh — no skeletons, no
+  // dialog reset, and no flicker if nothing changed.
   useEffect(() => {
-    const onSync = () => { void load(); };
+    const onSync = () => { void load({ silent: true }); };
     window.addEventListener("course-vault:synced", onSync);
     return () => window.removeEventListener("course-vault:synced", onSync);
   }, [load]);
