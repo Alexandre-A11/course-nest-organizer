@@ -14,6 +14,8 @@ const PT: Dict = {
   "nav.backup": "Backup",
   "nav.export": "Exportar biblioteca",
   "nav.import": "Importar biblioteca",
+  "nav.server": "Servidor de sincronização",
+  "nav.serverConnected": "Conectado ao servidor",
 
   // Home
   "home.title": "Meus cursos",
