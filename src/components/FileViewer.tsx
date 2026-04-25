@@ -596,7 +596,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
 }
 
 function ViewerContent({
-  file, url, onVideoEnded, mediaRef, initialSpeed, resumeAt, onTimeUpdate, onPause,
+  file, url, onVideoEnded, mediaRef, initialSpeed, resumeAt, onTimeUpdate, onPause, fillStage,
 }: {
   file: CourseFileMeta;
   url: string;
@@ -606,6 +606,8 @@ function ViewerContent({
   resumeAt?: number | null;
   onTimeUpdate?: (sec: number) => void;
   onPause?: (sec: number) => void;
+  /** When true, the video fills the available stage area edge-to-edge (theater/fullscreen). */
+  fillStage?: boolean;
 }) {
   const handleLoaded = (el: HTMLMediaElement | null) => {
     if (!el) return;
@@ -622,13 +624,19 @@ function ViewerContent({
   };
   if (file.kind === "video") {
     return (
-      <div className="flex h-full items-center justify-center bg-black p-0 sm:p-6">
+      <div className={cn(
+        "flex h-full items-center justify-center bg-black",
+        fillStage ? "p-0" : "p-0 sm:p-6",
+      )}>
         <video
           key={url}
           ref={(el) => { mediaRef.current = el; }}
           src={url}
           controls
-          className="max-h-full max-w-full rounded-lg shadow-elevated"
+          className={cn(
+            "max-h-full max-w-full",
+            fillStage ? "h-full w-full" : "rounded-lg shadow-elevated",
+          )}
           onEnded={onVideoEnded}
           onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
           onTimeUpdate={onTU}
