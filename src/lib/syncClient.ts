@@ -108,6 +108,7 @@ export async function connectServer(rawUrl: string): Promise<void> {
 export function disconnectServer(): void {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(URL_KEY);
+    window.localStorage.removeItem(AUTO_DETECTED_KEY);
     window.localStorage.removeItem(LAST_SYNC_KEY);
   }
   stopPolling();
@@ -304,7 +305,14 @@ export function streamUrlFor(folder: string, relPath: string): string | null {
 }
 
 // Auto-start on module load (browser only).
-if (typeof window !== "undefined" && getServerUrl()) {
+if (typeof window !== "undefined") {
   // Defer to next tick so React has a chance to mount listeners.
-  setTimeout(() => { startPolling(); void syncOnce(); }, 100);
+  setTimeout(() => {
+    if (getServerUrl()) {
+      startPolling();
+      void syncOnce();
+    } else {
+      void autoDetectSameOrigin();
+    }
+  }, 100);
 }
