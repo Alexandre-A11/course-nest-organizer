@@ -1,0 +1,19 @@
+{
+  "name": "course-vault-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional self-hosted LAN sync + media streaming server for Course Vault.",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}
