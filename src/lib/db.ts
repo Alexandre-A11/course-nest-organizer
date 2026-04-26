@@ -197,10 +197,12 @@ export async function deleteCourseBlobs(courseId: string) {
 
 /**
  * Wipe progress for a course: clears `watched`, `watchedAt`, `progress` and
- * `comment` for every file. Files themselves are not removed from the index.
- * Also clears the lastFileId pointer on the course.
+ * (optionally) `comment` for every file. Files themselves are not removed
+ * from the index. Also clears the lastFileId pointer on the course.
+ *
+ * @param keepNotes when true, preserves each file's `comment` field.
  */
-export async function resetCourseProgress(courseId: string) {
+export async function resetCourseProgress(courseId: string, keepNotes = false) {
   const db = await getDB();
   const tx = db.transaction(["files", "courses"], "readwrite");
   const filesStore = tx.objectStore("files");
@@ -214,7 +216,7 @@ export async function resetCourseProgress(courseId: string) {
       watched: false,
       watchedAt: undefined,
       progress: undefined,
-      comment: undefined,
+      comment: keepNotes ? f.comment : undefined,
       updatedAt: now,
     });
     cursor = await cursor.continue();
