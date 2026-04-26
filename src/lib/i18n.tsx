@@ -387,6 +387,12 @@ const EN: Dict = {
   "course.clearFocus": "Clear focus",
   "course.focusFolder": "Focus this folder",
   "course.showingOnly": "Showing only:",
+  "course.bulkSelected": "{n} selected",
+  "course.bulkMarkWatched": "Mark as done",
+  "course.bulkMarkUnwatched": "Unmark",
+  "course.bulkClear": "Clear selection",
+  "course.bulkHint": "Hold Ctrl (⌘) or Shift to select multiple files.",
+  "toast.bulkUpdated": "{n} file{plural} updated",
 
   "add.title": "New course",
   "add.subtitle": "Pick the course folder. Everything stays on your device.",
