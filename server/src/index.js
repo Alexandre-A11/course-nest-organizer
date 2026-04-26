@@ -312,6 +312,13 @@ app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
 // When PUBLIC_DIR exists (single-container deploy), serve the built web app.
 // API routes are registered ABOVE this block so they win over the SPA fallback.
 if (fs.existsSync(PUBLIC_DIR)) {
+  const indexHtml = path.join(PUBLIC_DIR, "index.html");
+  if (!fs.existsSync(indexHtml)) {
+    console.warn(
+      `[course-vault-server] WARNING: ${PUBLIC_DIR} exists but has no index.html. ` +
+      `Contents: ${fs.readdirSync(PUBLIC_DIR).join(", ") || "(empty)"}`
+    );
+  }
   // Cache hashed assets aggressively, never the entry HTML.
   app.use(express.static(PUBLIC_DIR, {
     index: false,
@@ -329,7 +336,16 @@ if (fs.existsSync(PUBLIC_DIR)) {
     if (fs.existsSync(indexFile)) {
       res.sendFile(indexFile);
     } else {
-      res.status(404).send("Frontend bundle not found");
+      res
+        .status(500)
+        .type("text/plain")
+        .send(
+          "Frontend bundle not found.\n\n" +
+          `Expected an index.html inside ${PUBLIC_DIR}.\n` +
+          "Rebuild the image with:\n" +
+          "  docker compose -f server/docker-compose.yml build --no-cache\n" +
+          "  docker compose -f server/docker-compose.yml up -d\n"
+        );
     }
   });
 }
