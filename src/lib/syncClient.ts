@@ -248,12 +248,15 @@ export async function syncOnce(): Promise<void> {
     try {
       const since = lastSyncAt ?? Number(window.localStorage.getItem(LAST_SYNC_KEY) ?? "0");
       const { courseChanges, fileChanges } = await collectLocalChanges(since);
-      const deletedCourses = getDeletedCourseIds();
+      const deletedCourseEntries = getDeletedCourseEntries();
       const body = {
         clientTime: Date.now(),
         courses: courseChanges,
         files: fileChanges,
-        deletedCourses,
+        // Send objects with deletedAt timestamps so the server can apply
+        // last-write-wins; keep the legacy id-only field for older servers.
+        deletedCourses: deletedCourseEntries,
+        deletedCourseIds: deletedCourseEntries.map((e) => e.id),
         customCategories: getCustomCategoriesRaw(),
         removedBuiltins: getRemovedBuiltinIds(),
       };
@@ -265,7 +268,16 @@ export async function syncOnce(): Promise<void> {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const snap = (await res.json()) as ServerSnapshot;
       await applyRemoteSnapshot(snap);
-      clearDeletedCourses(deletedCourses);
+      // Only clear local tombstones the server has fully accepted (i.e. they
+      // are no longer present in courses[]). We keep them otherwise so we
+      // re-broadcast them next round.
+      const stillKnown = new Set(snap.courses.map((c) => c.id));
+      const acceptedIds = deletedCourseEntries
+        .map((e) => e.id)
+        .filter((id) => !stillKnown.has(id));
+      clearDeletedCourses(acceptedIds);
+      // Suppress 'unused import' warning while keeping the legacy export usable.
+      void getDeletedCourseIds;
       lastSyncAt = snap.serverTime ?? Date.now();
       window.localStorage.setItem(LAST_SYNC_KEY, String(lastSyncAt));
       status = "online";
