@@ -134,9 +134,38 @@ app.post("/sync", (req, res) => {
   const now = Date.now();
 
   const tx = db.transaction(() => {
+    // 1) Apply incoming tombstones first so any subsequent course upsert
+    //    in the same payload is rejected if the course is now considered
+    //    deleted with a newer timestamp.
+    const incomingTombstones = [];
+    if (Array.isArray(body.deletedCourses)) {
+      for (const t of body.deletedCourses) {
+        if (!t) continue;
+        if (typeof t === "string") {
+          incomingTombstones.push({ id: t, deletedAt: now });
+        } else if (t.id) {
+          incomingTombstones.push({ id: t.id, deletedAt: Number(t.deletedAt) || now });
+        }
+      }
+    }
+    // Legacy field: deletedCourseIds: string[]
+    if (Array.isArray(body.deletedCourseIds)) {
+      for (const id of body.deletedCourseIds) {
+        if (typeof id === "string") incomingTombstones.push({ id, deletedAt: now });
+      }
+    }
+    for (const t of incomingTombstones) {
+      upsertTombstoneStmt.run(t.id, t.deletedAt);
+      deleteCourseStmt.run(t.id);
+      deleteFilesByCourseStmt.run(t.id);
+    }
+
     for (const c of body.courses || []) {
       if (!c?.id) continue;
       const ts = Number(c._updatedAt) || now;
+      // Don't resurrect a course that has a newer tombstone.
+      const tomb = getTombstoneStmt.get(c.id);
+      if (tomb && Number(tomb.deleted_at) >= ts) continue;
       // Strip transient/non-serializable fields before persisting.
       const { _updatedAt, handle, ...clean } = c;
       void _updatedAt; void handle;
@@ -145,13 +174,12 @@ app.post("/sync", (req, res) => {
     for (const f of body.files || []) {
       if (!f?.id || !f?.courseId) continue;
       const ts = Number(f._updatedAt) || now;
+      // Skip files whose course is tombstoned.
+      const tomb = getTombstoneStmt.get(f.courseId);
+      if (tomb) continue;
       const { _updatedAt, ...clean } = f;
       void _updatedAt;
       upsertFileStmt.run(f.id, f.courseId, JSON.stringify(clean), ts);
-    }
-    for (const cid of body.deletedCourses || []) {
-      deleteCourseStmt.run(cid);
-      deleteFilesByCourseStmt.run(cid);
     }
     if (Array.isArray(body.customCategories)) {
       upsertKvStmt.run("categories", JSON.stringify(body.customCategories), now);
