@@ -53,7 +53,9 @@ function CoursePage() {
         return;
       }
       setCourse(c);
-      if (c.source === "cached") {
+      if (c.source === "remote") {
+        // Remote courses stream over HTTP — no local permission needed.
+      } else if (c.source === "cached") {
         // Files live in IndexedDB — nothing to re-pick.
       } else if (c.source === "memory") {
         // Memory courses require re-picking the folder each session
@@ -120,7 +122,12 @@ function CoursePage() {
     if (!course) return;
     setRescanning(true);
     try {
-      if (course.source === "handle" && course.handle) {
+      if (course.source === "remote") {
+        // Remote courses are kept in sync by the server/sync layer; just refresh the file list.
+        const fs = await listFiles(courseId);
+        setFiles(fs);
+        toast.success(t("toast.synced", { n: fs.length }));
+      } else if (course.source === "handle" && course.handle) {
         const granted = await ensurePermission(course.handle);
         if (!granted) { setNeedsAccess("permission"); return; }
         const scanned = await scanDirectory(course.handle);
