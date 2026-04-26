@@ -18,8 +18,28 @@ RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 # Copy the rest of the frontend source and build a static SPA bundle.
 COPY . .
-# Force a static-only build: no SSR worker. Vite outputs to dist/.
-RUN npm run build
+# Build the frontend. The TanStack/Cloudflare preset can emit the static client
+# bundle into one of several locations depending on plugin version:
+#   dist/client/   (TanStack Start SSR layout)
+#   dist/public/   (Cloudflare worker assets layout)
+#   dist/          (plain Vite SPA layout)
+# Normalise everything into /app/frontend-dist so the runtime stage has a
+# single, predictable path to copy from.
+RUN npm run build \
+ && mkdir -p /app/frontend-dist \
+ && if [ -f dist/client/index.html ]; then \
+        cp -a dist/client/. /app/frontend-dist/; \
+    elif [ -f dist/public/index.html ]; then \
+        cp -a dist/public/. /app/frontend-dist/; \
+    elif [ -f dist/index.html ]; then \
+        cp -a dist/. /app/frontend-dist/; \
+    else \
+        echo "ERROR: could not locate built index.html under dist/. Contents:"; \
+        ls -laR dist || true; \
+        exit 1; \
+    fi \
+ && echo "Frontend bundle staged at /app/frontend-dist:" \
+ && ls -la /app/frontend-dist
 
 # ---------- Stage 2: build native deps + assemble runtime ----------
 FROM node:20-bookworm-slim AS runtime
@@ -38,9 +58,10 @@ RUN npm install --omit=dev --build-from-source --no-audit --no-fund
 COPY server/src ./src
 
 # Static frontend bundle from the previous stage. The Vite/TanStack build
-# emits the client SPA into dist/client/ — that's what the Express server
-# serves as the web app. server/src/index.js auto-detects /app/public.
-COPY --from=frontend /app/dist/client ./public
+# layout varies between plugin versions, so the previous stage normalised the
+# output into /app/frontend-dist. Copy that into /app/public; server/src/index.js
+# auto-detects PUBLIC_DIR and serves it as the web app.
+COPY --from=frontend /app/frontend-dist ./public
 
 VOLUME ["/data", "/courses"]
 
