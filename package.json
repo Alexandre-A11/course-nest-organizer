@@ -3,12 +3,11 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "scripts": {
+    "scripts": {
+    "start:all": "concurrently \"node server/src/index.js\" \"npm run dev -- --port 4173 --host 0.0.0.0\"",
     "dev": "vite dev",
     "build": "vite build",
-    "build:dev": "vite build --mode development",
     "preview": "vite preview",
-    "start:all": "concurrently -n api,web -c cyan,magenta \"node server/src/index.js\" \"npm run preview -- --port 4173 --host 0.0.0.0\"",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
