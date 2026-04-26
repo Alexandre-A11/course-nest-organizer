@@ -22,7 +22,6 @@ import { readdir, stat } from "node:fs/promises";
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = process.env.DATA_DIR || path.resolve("./data");
 const COURSES_DIR = process.env.COURSES_DIR || path.resolve("./courses");
-const PUBLIC_DIR = process.env.PUBLIC_DIR || path.resolve("./public");
 const VERSION = "1.0.0";
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -308,55 +307,9 @@ app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
   }
 });
 
-// ---------------- Static frontend (SPA) ----------------
-// When PUBLIC_DIR exists (single-container deploy), serve the built web app.
-// API routes are registered ABOVE this block so they win over the SPA fallback.
-if (fs.existsSync(PUBLIC_DIR)) {
-  const indexHtml = path.join(PUBLIC_DIR, "index.html");
-  if (!fs.existsSync(indexHtml)) {
-    console.warn(
-      `[course-vault-server] WARNING: ${PUBLIC_DIR} exists but has no index.html. ` +
-      `Contents: ${fs.readdirSync(PUBLIC_DIR).join(", ") || "(empty)"}`
-    );
-  }
-  // Cache hashed assets aggressively, never the entry HTML.
-  app.use(express.static(PUBLIC_DIR, {
-    index: false,
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith(".html")) {
-        res.setHeader("Cache-Control", "no-cache");
-      } else {
-        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      }
-    },
-  }));
-  // SPA fallback: serve index.html for anything that didn't match an API route.
-  app.get(/^(?!\/(health|library|sync|folders|folders-scan|stream)\b).*/, (_req, res) => {
-    const indexFile = path.join(PUBLIC_DIR, "index.html");
-    if (fs.existsSync(indexFile)) {
-      res.sendFile(indexFile);
-    } else {
-      res
-        .status(500)
-        .type("text/plain")
-        .send(
-          "Frontend bundle not found.\n\n" +
-          `Expected an index.html inside ${PUBLIC_DIR}.\n` +
-          "Rebuild the image with:\n" +
-          "  docker compose -f server/docker-compose.yml build --no-cache\n" +
-          "  docker compose -f server/docker-compose.yml up -d\n"
-        );
-    }
-  });
-}
-
 app.listen(PORT, () => {
   console.log(`[course-vault-server] v${VERSION} listening on :${PORT}`);
   console.log(`  data dir   : ${DATA_DIR}`);
   console.log(`  courses dir: ${COURSES_DIR}`);
-  if (fs.existsSync(PUBLIC_DIR)) {
-    console.log(`  public dir : ${PUBLIC_DIR} (frontend served at /)`);
-  } else {
-    console.log(`  public dir : <none> (API-only mode)`);
-  }
+  console.log(`  mode       : API-only (frontend served separately by Vite preview)`);
 });
