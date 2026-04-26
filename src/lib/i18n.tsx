@@ -438,6 +438,8 @@ const EN: Dict = {
   "reset.body": "All progress, watched marks and comments for \"{name}\" will be erased. This cannot be undone.",
   "reset.confirm": "Yes, reset",
   "reset.done": "Progress reset",
+  "reset.keepNotes": "Keep notes & comments",
+  "reset.keepNotesHint": "File comments will be preserved; only watched status and playback position will be cleared.",
 
   "toast.added": "Course \"{name}\" added with {n} files",
   "toast.updated": "Course updated",
