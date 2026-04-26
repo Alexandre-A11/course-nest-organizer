@@ -10,7 +10,8 @@
  */
 import {
   getDB, type Course, type CourseFileMeta,
-  getDeletedCourseIds, clearDeletedCourses,
+  getDeletedCourseEntries, getDeletedCourseIds, clearDeletedCourses,
+  rememberDeletedCourse,
 } from "@/lib/db";
 import {
   getCustomCategoriesRaw, getRemovedBuiltinIds, importCategoryState,
@@ -166,6 +167,8 @@ interface ServerSnapshot {
   files: Array<CourseFileMeta & { _updatedAt: number }>;
   customCategories?: Array<{ id: string; name: string; iconName: string; color: string }>;
   removedBuiltins?: string[];
+  /** Authoritative list of course ids the server has marked as deleted. */
+  deletedCourses?: Array<{ id: string; deletedAt: number }>;
 }
 
 async function applyRemoteSnapshot(snap: ServerSnapshot) {
@@ -173,7 +176,30 @@ async function applyRemoteSnapshot(snap: ServerSnapshot) {
   const tx = db.transaction(["courses", "files"], "readwrite");
   const cstore = tx.objectStore("courses");
   const fstore = tx.objectStore("files");
+  // 1) Apply remote tombstones FIRST so we don't reinsert a course we just
+  //    learned was deleted on another client.
+  const tombstoneIds = new Set<string>();
+  if (Array.isArray(snap.deletedCourses)) {
+    for (const t of snap.deletedCourses) {
+      if (!t?.id) continue;
+      tombstoneIds.add(t.id);
+      // Remove the course locally (if present) and all its files.
+      const local = (await cstore.get(t.id)) as Course | undefined;
+      if (local) await cstore.delete(t.id);
+      // Files for this course (cursor over the byCourse index).
+      const idx = fstore.index("byCourse");
+      let cursor = await idx.openCursor(t.id);
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+      // Mirror the tombstone locally so this client also re-broadcasts it
+      // on next sync (helps peers that were offline at deletion time).
+      rememberDeletedCourse(t.id, t.deletedAt);
+    }
+  }
   for (const remote of snap.courses) {
+    if (tombstoneIds.has(remote.id)) continue;
     const local = (await cstore.get(remote.id)) as Course | undefined;
     const localTs = local?.updatedAt ?? local?.createdAt ?? 0;
     if (!local || (remote._updatedAt ?? 0) > localTs) {
@@ -193,6 +219,7 @@ async function applyRemoteSnapshot(snap: ServerSnapshot) {
     }
   }
   for (const remote of snap.files) {
+    if (tombstoneIds.has(remote.courseId)) continue;
     const local = (await fstore.get(remote.id)) as CourseFileMeta | undefined;
     const localTs = local?.updatedAt ?? 0;
     if (!local || (remote._updatedAt ?? 0) > localTs) {
