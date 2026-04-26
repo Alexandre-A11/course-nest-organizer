@@ -6,10 +6,13 @@ import { FileViewer } from "@/components/FileViewer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { getCourse, listFiles, upsertFiles, touchCourseLastFile, type Course, type CourseFileMeta, type FileKind } from "@/lib/db";
+import {
+  getCourse, listFiles, upsertFiles, touchCourseLastFile, bulkSetWatched,
+  saveCourseCustomOrder, type Course, type CourseFileMeta, type FileKind,
+} from "@/lib/db";
 import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
 import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
-import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil, HardDrive } from "lucide-react";
+import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil, CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { Toggle } from "@/components/ui/toggle";
 import { usePref } from "@/lib/prefs";
@@ -43,6 +46,8 @@ function CoursePage() {
   const [focusFolder, setFocusFolder] = useState<string | null>(null);
   const [highlightFolder, setHighlightFolder] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
+  const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -164,6 +169,56 @@ function CoursePage() {
   }, [files, search, filter]);
 
   const selected = files.find((f) => f.id === selectedId) ?? null;
+
+  // Clear stale multi-selection ids when the visible file list changes.
+  useEffect(() => {
+    if (multiSelected.size === 0) return;
+    const visible = new Set(filtered.map((f) => f.id));
+    let dirty = false;
+    const next = new Set<string>();
+    multiSelected.forEach((id) => { if (visible.has(id)) next.add(id); else dirty = true; });
+    if (dirty) setMultiSelected(next);
+  }, [filtered, multiSelected]);
+
+  const handleMultiSelect = (file: CourseFileMeta, mods: { ctrl: boolean; shift: boolean }) => {
+    setMultiSelected((prev) => {
+      const next = new Set(prev);
+      if (mods.shift && lastClickedId) {
+        // Range select against the currently filtered list.
+        const ids = filtered.map((f) => f.id);
+        const a = ids.indexOf(lastClickedId);
+        const b = ids.indexOf(file.id);
+        if (a >= 0 && b >= 0) {
+          const [start, end] = a < b ? [a, b] : [b, a];
+          for (let i = start; i <= end; i++) next.add(ids[i]);
+        } else {
+          next.add(file.id);
+        }
+      } else {
+        // Ctrl / Cmd toggle.
+        if (next.has(file.id)) next.delete(file.id);
+        else next.add(file.id);
+      }
+      return next;
+    });
+    setLastClickedId(file.id);
+  };
+
+  const doBulkSetWatched = async (watched: boolean) => {
+    const ids = [...multiSelected];
+    if (ids.length === 0) return;
+    const updated = await bulkSetWatched(ids, watched);
+    const map = new Map(updated.map((f) => [f.id, f]));
+    setFiles((prev) => prev.map((f) => map.get(f.id) ?? f));
+    toast.success(t("toast.bulkUpdated", { n: updated.length, plural: updated.length === 1 ? "" : "s" }));
+    setMultiSelected(new Set());
+  };
+
+  const handleReorder = async (order: Record<string, number>) => {
+    if (!course) return;
+    setCourse({ ...course, customOrder: order });
+    await saveCourseCustomOrder(course.id, order);
+  };
 
   // Persist last-opened file whenever the user picks one.
   useEffect(() => {
@@ -344,6 +399,40 @@ function CoursePage() {
             </div>
           </div>
           <div className="flex-1 overflow-auto p-2">
+            {multiSelected.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-primary/30 bg-primary-soft px-2 py-1.5">
+                <span className="text-xs font-medium text-primary">
+                  {t("course.bulkSelected", { n: multiSelected.size, plural: multiSelected.size === 1 ? "" : "s" })}
+                </span>
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void doBulkSetWatched(true)}
+                    className="h-7 gap-1 rounded-lg px-2 text-xs"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{t("course.bulkMarkWatched")}</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void doBulkSetWatched(false)}
+                    className="h-7 gap-1 rounded-lg px-2 text-xs"
+                  >
+                    <Circle className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{t("course.bulkMarkUnwatched")}</span>
+                  </Button>
+                  <button
+                    onClick={() => setMultiSelected(new Set())}
+                    title={t("course.bulkClear")}
+                    className="rounded p-1 text-primary/70 hover:bg-primary/10 hover:text-primary"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
             {filtered.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t("course.noFiles")}</p>
             ) : (
@@ -355,6 +444,10 @@ function CoursePage() {
                 focusFolder={focusFolder}
                 onSetFocusFolder={setFocusFolder}
                 highlightFolder={highlightFolder}
+                customOrder={course?.customOrder}
+                onReorder={handleReorder}
+                selectedIds={multiSelected}
+                onMultiSelect={handleMultiSelect}
               />
             )}
           </div>

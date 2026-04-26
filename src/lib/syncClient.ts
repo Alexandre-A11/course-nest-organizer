@@ -10,7 +10,8 @@
  */
 import {
   getDB, type Course, type CourseFileMeta,
-  getDeletedCourseIds, clearDeletedCourses,
+  getDeletedCourseEntries, getDeletedCourseIds, clearDeletedCourses,
+  rememberDeletedCourse,
 } from "@/lib/db";
 import {
   getCustomCategoriesRaw, getRemovedBuiltinIds, importCategoryState,
@@ -166,6 +167,8 @@ interface ServerSnapshot {
   files: Array<CourseFileMeta & { _updatedAt: number }>;
   customCategories?: Array<{ id: string; name: string; iconName: string; color: string }>;
   removedBuiltins?: string[];
+  /** Authoritative list of course ids the server has marked as deleted. */
+  deletedCourses?: Array<{ id: string; deletedAt: number }>;
 }
 
 async function applyRemoteSnapshot(snap: ServerSnapshot) {
@@ -173,7 +176,30 @@ async function applyRemoteSnapshot(snap: ServerSnapshot) {
   const tx = db.transaction(["courses", "files"], "readwrite");
   const cstore = tx.objectStore("courses");
   const fstore = tx.objectStore("files");
+  // 1) Apply remote tombstones FIRST so we don't reinsert a course we just
+  //    learned was deleted on another client.
+  const tombstoneIds = new Set<string>();
+  if (Array.isArray(snap.deletedCourses)) {
+    for (const t of snap.deletedCourses) {
+      if (!t?.id) continue;
+      tombstoneIds.add(t.id);
+      // Remove the course locally (if present) and all its files.
+      const local = (await cstore.get(t.id)) as Course | undefined;
+      if (local) await cstore.delete(t.id);
+      // Files for this course (cursor over the byCourse index).
+      const idx = fstore.index("byCourse");
+      let cursor = await idx.openCursor(t.id);
+      while (cursor) {
+        await cursor.delete();
+        cursor = await cursor.continue();
+      }
+      // Mirror the tombstone locally so this client also re-broadcasts it
+      // on next sync (helps peers that were offline at deletion time).
+      rememberDeletedCourse(t.id, t.deletedAt);
+    }
+  }
   for (const remote of snap.courses) {
+    if (tombstoneIds.has(remote.id)) continue;
     const local = (await cstore.get(remote.id)) as Course | undefined;
     const localTs = local?.updatedAt ?? local?.createdAt ?? 0;
     if (!local || (remote._updatedAt ?? 0) > localTs) {
@@ -193,6 +219,7 @@ async function applyRemoteSnapshot(snap: ServerSnapshot) {
     }
   }
   for (const remote of snap.files) {
+    if (tombstoneIds.has(remote.courseId)) continue;
     const local = (await fstore.get(remote.id)) as CourseFileMeta | undefined;
     const localTs = local?.updatedAt ?? 0;
     if (!local || (remote._updatedAt ?? 0) > localTs) {
@@ -221,12 +248,15 @@ export async function syncOnce(): Promise<void> {
     try {
       const since = lastSyncAt ?? Number(window.localStorage.getItem(LAST_SYNC_KEY) ?? "0");
       const { courseChanges, fileChanges } = await collectLocalChanges(since);
-      const deletedCourses = getDeletedCourseIds();
+      const deletedCourseEntries = getDeletedCourseEntries();
       const body = {
         clientTime: Date.now(),
         courses: courseChanges,
         files: fileChanges,
-        deletedCourses,
+        // Send objects with deletedAt timestamps so the server can apply
+        // last-write-wins; keep the legacy id-only field for older servers.
+        deletedCourses: deletedCourseEntries,
+        deletedCourseIds: deletedCourseEntries.map((e) => e.id),
         customCategories: getCustomCategoriesRaw(),
         removedBuiltins: getRemovedBuiltinIds(),
       };
@@ -238,7 +268,16 @@ export async function syncOnce(): Promise<void> {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const snap = (await res.json()) as ServerSnapshot;
       await applyRemoteSnapshot(snap);
-      clearDeletedCourses(deletedCourses);
+      // Only clear local tombstones the server has fully accepted (i.e. they
+      // are no longer present in courses[]). We keep them otherwise so we
+      // re-broadcast them next round.
+      const stillKnown = new Set(snap.courses.map((c) => c.id));
+      const acceptedIds = deletedCourseEntries
+        .map((e) => e.id)
+        .filter((id) => !stillKnown.has(id));
+      clearDeletedCourses(acceptedIds);
+      // Suppress 'unused import' warning while keeping the legacy export usable.
+      void getDeletedCourseIds;
       lastSyncAt = snap.serverTime ?? Date.now();
       window.localStorage.setItem(LAST_SYNC_KEY, String(lastSyncAt));
       status = "online";

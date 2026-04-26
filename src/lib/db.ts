@@ -49,6 +49,12 @@ export interface Course {
   // you left off" feature on the home page.
   lastFileId?: string;
   lastAccessedAt?: number;
+  /**
+   * Custom user-defined ordering (drag & drop) for files and folders inside
+   * this course. Maps a relative path (file or folder) → numeric orderIndex.
+   * Items without an entry fall back to natural alphanumeric ordering.
+   */
+  customOrder?: Record<string, number>;
   /** Last local mutation timestamp (ms). Used by the sync layer. */
   updatedAt?: number;
 }
@@ -191,10 +197,12 @@ export async function deleteCourseBlobs(courseId: string) {
 
 /**
  * Wipe progress for a course: clears `watched`, `watchedAt`, `progress` and
- * `comment` for every file. Files themselves are not removed from the index.
- * Also clears the lastFileId pointer on the course.
+ * (optionally) `comment` for every file. Files themselves are not removed
+ * from the index. Also clears the lastFileId pointer on the course.
+ *
+ * @param keepNotes when true, preserves each file's `comment` field.
  */
-export async function resetCourseProgress(courseId: string) {
+export async function resetCourseProgress(courseId: string, keepNotes = false) {
   const db = await getDB();
   const tx = db.transaction(["files", "courses"], "readwrite");
   const filesStore = tx.objectStore("files");
@@ -208,7 +216,7 @@ export async function resetCourseProgress(courseId: string) {
       watched: false,
       watchedAt: undefined,
       progress: undefined,
-      comment: undefined,
+      comment: keepNotes ? f.comment : undefined,
       updatedAt: now,
     });
     cursor = await cursor.continue();
@@ -241,31 +249,96 @@ export async function saveFileProgress(fileId: string, seconds: number) {
 
 // ---- Deletion log (so sync can propagate removals) ----
 
+/**
+ * Tombstones for deleted courses. We persist BOTH the id and a deletion
+ * timestamp so the sync layer can authoritatively propagate removals across
+ * clients (last-write-wins on the server). Tombstones are kept locally even
+ * after sync so any peer that comes online later still receives them — until
+ * we observe the server has fully removed the row (handled in syncClient).
+ */
 const DELETED_COURSES_KEY = "course-vault.deletedCourses";
 
-function loadDeletedCourses(): Set<string> {
-  if (typeof window === "undefined") return new Set();
+export type DeletedCourseEntry = { id: string; deletedAt: number };
+
+function loadDeletedCourses(): Map<string, number> {
+  if (typeof window === "undefined") return new Map();
   try {
     const raw = window.localStorage.getItem(DELETED_COURSES_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch { return new Set(); }
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw);
+    // Back-compat: previously a string[] of ids.
+    if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
+      const m = new Map<string, number>();
+      const now = Date.now();
+      for (const id of parsed) m.set(id, now);
+      return m;
+    }
+    if (Array.isArray(parsed)) {
+      const m = new Map<string, number>();
+      for (const e of parsed as DeletedCourseEntry[]) {
+        if (e && typeof e.id === "string") m.set(e.id, Number(e.deletedAt) || Date.now());
+      }
+      return m;
+    }
+    return new Map();
+  } catch { return new Map(); }
 }
-function saveDeletedCourses(set: Set<string>) {
+function saveDeletedCourses(map: Map<string, number>) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(DELETED_COURSES_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+  try {
+    const arr: DeletedCourseEntry[] = [...map.entries()].map(([id, deletedAt]) => ({ id, deletedAt }));
+    window.localStorage.setItem(DELETED_COURSES_KEY, JSON.stringify(arr));
+  } catch { /* ignore */ }
 }
-export function rememberDeletedCourse(id: string) {
+export function rememberDeletedCourse(id: string, when: number = Date.now()) {
   const s = loadDeletedCourses();
-  s.add(id);
+  s.set(id, when);
   saveDeletedCourses(s);
 }
 export function getDeletedCourseIds(): string[] {
-  return [...loadDeletedCourses()];
+  return [...loadDeletedCourses().keys()];
+}
+export function getDeletedCourseEntries(): DeletedCourseEntry[] {
+  return [...loadDeletedCourses().entries()].map(([id, deletedAt]) => ({ id, deletedAt }));
 }
 export function clearDeletedCourses(ids: string[]) {
   const s = loadDeletedCourses();
   for (const id of ids) s.delete(id);
   saveDeletedCourses(s);
+}
+
+/**
+ * Bulk update the `watched` (+ `watchedAt`) flag on multiple files at once.
+ * Used by the FileTree multi-select bulk actions.
+ */
+export async function bulkSetWatched(fileIds: string[], watched: boolean): Promise<CourseFileMeta[]> {
+  if (fileIds.length === 0) return [];
+  const db = await getDB();
+  const tx = db.transaction("files", "readwrite");
+  const now = Date.now();
+  const updated: CourseFileMeta[] = [];
+  for (const id of fileIds) {
+    const f = (await tx.store.get(id)) as CourseFileMeta | undefined;
+    if (!f) continue;
+    const next: CourseFileMeta = {
+      ...f,
+      watched,
+      watchedAt: watched ? now : undefined,
+      updatedAt: now,
+    };
+    await tx.store.put(next);
+    updated.push(next);
+  }
+  await tx.done;
+  return updated;
+}
+
+/** Persist a new custom drag-and-drop order map for a course. */
+export async function saveCourseCustomOrder(courseId: string, order: Record<string, number>) {
+  const db = await getDB();
+  const c = await db.get("courses", courseId);
+  if (!c) return;
+  await db.put("courses", { ...c, customOrder: order, updatedAt: Date.now() });
 }
 
 // ---- Library export / import (JSON) ----

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ImagePlus, Trash2, X, FolderOpen, Loader2, Settings2, RotateCcw, AlertTriangle } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   saveCourse, upsertFiles, deleteCourseBlobs, listFiles, resetCourseProgress,
   type Course,
@@ -48,6 +49,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
   const [showDanger, setShowDanger] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [keepNotes, setKeepNotes] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderFallbackRef = useRef<HTMLInputElement>(null);
   const cats = useCategories();
@@ -169,7 +171,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
     if (!course) return;
     setResetting(true);
     try {
-      await resetCourseProgress(course.id);
+      await resetCourseProgress(course.id, keepNotes);
       toast.success(t("reset.done"));
       setConfirmReset(false);
       onSaved({ ...course, lastFileId: undefined, lastAccessedAt: undefined });
@@ -377,6 +379,19 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
             {t("reset.body", { name: course?.name ?? "" })}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <div className="rounded-xl border border-border bg-muted/30 p-3">
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+            <Checkbox
+              checked={keepNotes}
+              onCheckedChange={(v) => setKeepNotes(v === true)}
+              className="mt-0.5"
+            />
+            <span className="space-y-1">
+              <span className="block font-medium text-foreground">{t("reset.keepNotes")}</span>
+              <span className="block text-xs text-muted-foreground">{t("reset.keepNotesHint")}</span>
+            </span>
+          </label>
+        </div>
         <AlertDialogFooter>
           <AlertDialogCancel className="rounded-xl">{t("btn.cancel")}</AlertDialogCancel>
           <AlertDialogAction

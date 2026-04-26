@@ -97,6 +97,12 @@ const PT: Dict = {
   "course.clearFocus": "Limpar foco",
   "course.focusFolder": "Focar nessa pasta",
   "course.showingOnly": "Mostrando apenas:",
+  "course.bulkSelected": "{n} selecionado{plural}",
+  "course.bulkMarkWatched": "Marcar como concluídos",
+  "course.bulkMarkUnwatched": "Desmarcar",
+  "course.bulkClear": "Limpar seleção",
+  "course.bulkHint": "Segure Ctrl (⌘) ou Shift para selecionar vários arquivos.",
+  "toast.bulkUpdated": "{n} arquivo{plural} atualizado{plural}",
 
   // Add/Edit dialog
   "add.title": "Novo curso",
@@ -157,6 +163,8 @@ const PT: Dict = {
   "reset.body": "Todo o progresso, marcações de \"assistido\" e comentários de \"{name}\" serão apagados. Esta ação não pode ser desfeita.",
   "reset.confirm": "Sim, resetar",
   "reset.done": "Progresso resetado",
+  "reset.keepNotes": "Manter anotações e comentários",
+  "reset.keepNotesHint": "Os comentários dos arquivos serão preservados; apenas o status \"assistido\" e a posição de reprodução serão apagados.",
 
   // Toasts
   "toast.added": "Curso \"{name}\" adicionado com {n} arquivos",
@@ -379,6 +387,12 @@ const EN: Dict = {
   "course.clearFocus": "Clear focus",
   "course.focusFolder": "Focus this folder",
   "course.showingOnly": "Showing only:",
+  "course.bulkSelected": "{n} selected",
+  "course.bulkMarkWatched": "Mark as done",
+  "course.bulkMarkUnwatched": "Unmark",
+  "course.bulkClear": "Clear selection",
+  "course.bulkHint": "Hold Ctrl (⌘) or Shift to select multiple files.",
+  "toast.bulkUpdated": "{n} file{plural} updated",
 
   "add.title": "New course",
   "add.subtitle": "Pick the course folder. Everything stays on your device.",
@@ -436,6 +450,8 @@ const EN: Dict = {
   "reset.body": "All progress, watched marks and comments for \"{name}\" will be erased. This cannot be undone.",
   "reset.confirm": "Yes, reset",
   "reset.done": "Progress reset",
+  "reset.keepNotes": "Keep notes & comments",
+  "reset.keepNotesHint": "File comments will be preserved; only watched status and playback position will be cleared.",
 
   "toast.added": "Course \"{name}\" added with {n} files",
   "toast.updated": "Course updated",
