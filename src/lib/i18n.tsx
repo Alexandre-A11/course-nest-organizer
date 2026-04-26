@@ -97,6 +97,12 @@ const PT: Dict = {
   "course.clearFocus": "Limpar foco",
   "course.focusFolder": "Focar nessa pasta",
   "course.showingOnly": "Mostrando apenas:",
+  "course.bulkSelected": "{n} selecionado{plural}",
+  "course.bulkMarkWatched": "Marcar como concluídos",
+  "course.bulkMarkUnwatched": "Desmarcar",
+  "course.bulkClear": "Limpar seleção",
+  "course.bulkHint": "Segure Ctrl (⌘) ou Shift para selecionar vários arquivos.",
+  "toast.bulkUpdated": "{n} arquivo{plural} atualizado{plural}",
 
   // Add/Edit dialog
   "add.title": "Novo curso",
