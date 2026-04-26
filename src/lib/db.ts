@@ -49,6 +49,12 @@ export interface Course {
   // you left off" feature on the home page.
   lastFileId?: string;
   lastAccessedAt?: number;
+  /**
+   * Custom user-defined ordering (drag & drop) for files and folders inside
+   * this course. Maps a relative path (file or folder) → numeric orderIndex.
+   * Items without an entry fall back to natural alphanumeric ordering.
+   */
+  customOrder?: Record<string, number>;
   /** Last local mutation timestamp (ms). Used by the sync layer. */
   updatedAt?: number;
 }
