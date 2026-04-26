@@ -174,7 +174,14 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-export function buildTree(files: CourseFileMeta[]) {
+/**
+ * Build a hierarchical folder tree from a flat list of files.
+ * Children at every level are sorted by:
+ *   1. customOrder[child.path] (if defined — drag-and-drop user override)
+ *   2. folders before files
+ *   3. natural alphanumeric (localeCompare numeric+sensitivity:base)
+ */
+export function buildTree(files: CourseFileMeta[], customOrder?: Record<string, number>) {
   type Node = {
     name: string;
     path: string;
@@ -199,5 +206,28 @@ export function buildTree(files: CourseFileMeta[]) {
       if (isLeaf) node.file = f;
     }
   }
+
+  // Recursively sort children of every node into a stable, ordered Map.
+  const sortChildren = (n: Node) => {
+    const arr = [...n.children.values()];
+    arr.sort((a, b) => {
+      const aOrder = customOrder?.[a.path];
+      const bOrder = customOrder?.[b.path];
+      // Both have a custom order → numeric compare.
+      if (aOrder != null && bOrder != null) return aOrder - bOrder;
+      // Only one has a custom order → it wins (lower index = first).
+      if (aOrder != null) return -1;
+      if (bOrder != null) return 1;
+      // Folders before files within the same level.
+      const aIsFolder = !a.file;
+      const bIsFolder = !b.file;
+      if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+    });
+    n.children = new Map(arr.map((c) => [c.name, c]));
+    for (const c of arr) sortChildren(c);
+  };
+  sortChildren(root);
+
   return root;
 }
