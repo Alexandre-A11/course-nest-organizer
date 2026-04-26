@@ -1,11 +1,14 @@
 # Course Vault — Self-hosted (single container)
 
-Optional self-hosted **single-container** deployment that ships both the web
-app (frontend) and the LAN sync + media-streaming backend in one Docker
-image. Multiple browsers / devices on your local network share the same
-library — progress, notes, categories, watched flags **and the actual course
-files** (videos, PDFs, audio…) — without any cloud, per-browser folder
-reselection, or separate frontend deploy.
+Optional self-hosted **single-container** deployment that runs BOTH servers
+side-by-side in one Docker image:
+
+- **Frontend** (Vite preview) on port `4173`
+- **Backend** (Express API + LAN sync + media streaming) on port `8787`
+
+Multiple browsers / devices on your local network share the same library —
+progress, notes, categories, watched flags **and the actual course files**
+(videos, PDFs, audio…) — without any cloud or per-browser folder reselection.
 
 The web app continues to work 100% offline against IndexedDB; the server is
 the single source of truth when you open the bundled URL.
@@ -54,15 +57,18 @@ compilation). After that:
 [course-vault-server] v1.0.0 listening on :8787
 ```
 
-Find the LAN IP of the host (e.g. `192.168.1.50`) and open it in any browser:
+Find the LAN IP of the host (e.g. `192.168.1.50`) and open the **frontend** in
+any browser:
+
+```
+http://192.168.1.50:4173
+```
+
+Then click the **server icon** in the top bar and point it at the API:
 
 ```
 http://192.168.1.50:8787
 ```
-
-The web app loads instantly — **no separate frontend deploy needed**. The
-browser auto-detects that it was served from the Course Vault server and
-starts syncing automatically.
 
 API health check:
 
@@ -73,13 +79,9 @@ http://192.168.1.50:8787/health
 
 ## 4. Open it from any device
 
-On any browser/device on the same network, open `http://<host-ip>:8787`. The
-frontend served by the container automatically uses the same origin as its
-sync server — no manual configuration needed.
-
-If you'd rather run the frontend somewhere else (e.g. Vercel) and only point
-to this container as the API, use the **server icon** in the top bar to enter
-`http://192.168.1.50:8787` manually.
+On any browser/device on the same network, open `http://<host-ip>:4173` for
+the app. The frontend talks to the API on `http://<host-ip>:8787` (configured
+once via the **server icon** in the top bar).
 
 - The app pulls the server library on connect.
 - Local changes (mark watched, notes, progress…) sync to the server every few
@@ -113,7 +115,8 @@ This server has **no authentication** — anyone on your LAN who knows its
 address can read the library and stream files. That matches the "LAN
 confiável" tier you picked. If you ever want to expose it to the internet,
 put a reverse proxy with auth in front of it (Caddy + basic auth, Tailscale,
-Cloudflare Tunnel, etc.) — do **not** open port 8787 on your router as-is.
+Cloudflare Tunnel, etc.) — do **not** open ports 4173/8787 on your router
+as-is.
 
 ## 8. Updating
 
