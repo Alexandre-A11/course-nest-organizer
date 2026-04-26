@@ -157,6 +157,8 @@ const PT: Dict = {
   "reset.body": "Todo o progresso, marcações de \"assistido\" e comentários de \"{name}\" serão apagados. Esta ação não pode ser desfeita.",
   "reset.confirm": "Sim, resetar",
   "reset.done": "Progresso resetado",
+  "reset.keepNotes": "Manter anotações e comentários",
+  "reset.keepNotesHint": "Os comentários dos arquivos serão preservados; apenas o status \"assistido\" e a posição de reprodução serão apagados.",
 
   // Toasts
   "toast.added": "Curso \"{name}\" adicionado com {n} arquivos",
