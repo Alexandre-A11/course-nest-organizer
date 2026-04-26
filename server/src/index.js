@@ -49,6 +49,12 @@ db.exec(`
     value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   );
+  -- Tombstones for deleted courses so the deletion can be propagated to
+  -- every client (including ones offline at the time of deletion).
+  CREATE TABLE IF NOT EXISTS deleted_courses (
+    id TEXT PRIMARY KEY,
+    deleted_at INTEGER NOT NULL
+  );
 `);
 
 const getCoursesStmt = db.prepare("SELECT id, data, updated_at FROM courses");
@@ -71,6 +77,12 @@ const upsertKvStmt = db.prepare(
 );
 const deleteCourseStmt = db.prepare("DELETE FROM courses WHERE id = ?");
 const deleteFilesByCourseStmt = db.prepare("DELETE FROM files WHERE course_id = ?");
+const upsertTombstoneStmt = db.prepare(
+  "INSERT INTO deleted_courses(id, deleted_at) VALUES(?, ?) " +
+  "ON CONFLICT(id) DO UPDATE SET deleted_at = MAX(deleted_courses.deleted_at, excluded.deleted_at)"
+);
+const getTombstonesStmt = db.prepare("SELECT id, deleted_at FROM deleted_courses");
+const getTombstoneStmt = db.prepare("SELECT deleted_at FROM deleted_courses WHERE id = ?");
 
 function snapshot() {
   const courses = getCoursesStmt.all().map((r) => {
@@ -83,6 +95,9 @@ function snapshot() {
   });
   const cats = getKvStmt.get("categories");
   const removed = getKvStmt.get("removedBuiltins");
+  const tombstones = getTombstonesStmt.all().map((r) => ({
+    id: r.id, deletedAt: r.deleted_at,
+  }));
   return {
     version: 1,
     serverTime: Date.now(),
@@ -90,6 +105,7 @@ function snapshot() {
     files,
     customCategories: cats ? JSON.parse(cats.value) : [],
     removedBuiltins: removed ? JSON.parse(removed.value) : [],
+    deletedCourses: tombstones,
   };
 }
 
