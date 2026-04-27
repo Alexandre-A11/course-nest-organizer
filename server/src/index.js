@@ -56,7 +56,7 @@ db.exec(`
     deleted_at INTEGER NOT NULL
   );
   -- Per-lesson code snapshots (one row per snapshot — soft-deleted via
-  -- the JSON `deleted` flag inside `data`).
+  -- the JSON deleted flag inside data).
   CREATE TABLE IF NOT EXISTS snapshots (
     id TEXT PRIMARY KEY,
     file_id TEXT NOT NULL,
