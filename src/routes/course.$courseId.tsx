@@ -68,7 +68,15 @@ function CoursePage() {
       setFlatViewState(c.flattenFolders ? "on" : "off");
       setFocusFolderState(c.focusedFolder ?? null);
       setSortModeState(c.sortMode ?? "natural");
-      setExpandedFoldersState(c.expandedFolders ?? []);
+      // First-time hydration: when the course has never persisted an
+      // expansion set, seed it with the top-level folder paths so the tree
+      // opens at depth 0 by default. Subsequent loads always honour the
+      // persisted array — including an explicit empty array from "Collapse all".
+      if (Array.isArray(c.expandedFolders)) {
+        setExpandedFoldersState(c.expandedFolders);
+      } else {
+        setExpandedFoldersState([]); // will be filled in once files load below
+      }
       if (c.source === "remote") {
         // Remote courses stream over HTTP — no local permission needed.
       } else if (c.source === "cached") {
