@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { GraduationCap, DatabaseBackup, ServerCog, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { GraduationCap, DatabaseBackup, ServerCog, Loader2, AlertTriangle, CheckCircle2, NotebookPen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -35,6 +35,22 @@ export function AppHeader() {
           </div>
         </Link>
         <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
+          <Link
+            to="/notes"
+            title={t("nav.notes")}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            activeProps={{ className: "text-foreground bg-secondary" }}
+          >
+            <NotebookPen className="h-[18px] w-[18px]" />
+            <span className="hidden md:inline">{t("nav.notes")}</span>
+          </Link>
+          <Link
+            to="/notes"
+            title={t("nav.notes")}
+            className="sm:hidden rounded-lg p-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <NotebookPen className="h-[18px] w-[18px]" />
+          </Link>
           <button
             type="button"
             onClick={() => setServerOpen(true)}
