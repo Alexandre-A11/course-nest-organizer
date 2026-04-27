@@ -334,11 +334,31 @@ export async function bulkSetWatched(fileIds: string[], watched: boolean): Promi
 }
 
 /** Persist a new custom drag-and-drop order map for a course. */
-export async function saveCourseCustomOrder(courseId: string, order: Record<string, number>) {
+export async function saveCourseUiState(
+  courseId: string,
+  patch: Partial<Pick<Course, "expandedFolders" | "focusedFolder" | "sortMode" | "flattenFolders">>,
+) {
   const db = await getDB();
   const c = await db.get("courses", courseId);
   if (!c) return;
-  await db.put("courses", { ...c, customOrder: order, updatedAt: Date.now() });
+  await db.put("courses", { ...c, ...patch, updatedAt: Date.now() });
+}
+
+/**
+ * One-shot migration helper called at app boot. Deletes every course that
+ * was added with a now-removed local source (`handle`, `memory`, `cached`)
+ * along with its files & blobs. Returns the names of removed courses so the
+ * UI can show a one-time toast.
+ */
+export async function purgeLegacyLocalCourses(): Promise<string[]> {
+  const db = await getDB();
+  const all = await db.getAll("courses");
+  const toDelete = all.filter((c) => c.source !== "remote");
+  if (toDelete.length === 0) return [];
+  for (const c of toDelete) {
+    await deleteCourse(c.id); // already wipes files + blobs + tombstone
+  }
+  return toDelete.map((c) => c.name);
 }
 
 // ---- Library export / import (JSON) ----
