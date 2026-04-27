@@ -326,6 +326,27 @@ const PT: Dict = {
   "server.connOk": "Conectado (servidor v{v})",
   "server.connErr": "Falha ao conectar: {msg}",
   "server.disconnected": "Desconectado do servidor",
+
+  // Theme random
+  "theme.random": "Tema aleatório",
+  "theme.randomHint": "Sorteia respeitando o horário do dia",
+  "theme.randomPicked": "Tema sorteado",
+
+  // Global notes page
+  "notesPage.title": "Notas e snapshots",
+  "notesPage.subtitle": "Pesquise todas as suas anotações e blocos de código capturados nas aulas.",
+  "notesPage.searchPh": "Buscar em notas, snapshots e código…",
+  "notesPage.allCourses": "Todos os cursos",
+  "notesPage.allLangs": "Todas as linguagens",
+  "notesPage.tabAll": "Tudo",
+  "notesPage.tabNotes": "Notas",
+  "notesPage.tabSnaps": "Snapshots",
+  "notesPage.notesSection": "Anotações",
+  "notesPage.snapsSection": "Snapshots de código",
+  "notesPage.emptyNotes": "Nenhuma nota encontrada com esses filtros.",
+  "notesPage.emptySnaps": "Nenhum snapshot encontrado com esses filtros.",
+  "notesPage.openCourse": "Abrir curso",
+  "nav.notes": "Notas",
 };
 
 const EN: Dict = {
@@ -633,6 +654,25 @@ const EN: Dict = {
   "server.connOk": "Connected (server v{v})",
   "server.connErr": "Connection failed: {msg}",
   "server.disconnected": "Disconnected from server",
+
+  "theme.random": "Random theme",
+  "theme.randomHint": "Picks based on time of day",
+  "theme.randomPicked": "Random theme",
+
+  "notesPage.title": "Notes & snapshots",
+  "notesPage.subtitle": "Search every note and code snapshot you've captured across your courses.",
+  "notesPage.searchPh": "Search notes, snapshots and code…",
+  "notesPage.allCourses": "All courses",
+  "notesPage.allLangs": "All languages",
+  "notesPage.tabAll": "All",
+  "notesPage.tabNotes": "Notes",
+  "notesPage.tabSnaps": "Snapshots",
+  "notesPage.notesSection": "Notes",
+  "notesPage.snapsSection": "Code snapshots",
+  "notesPage.emptyNotes": "No notes match those filters.",
+  "notesPage.emptySnaps": "No snapshots match those filters.",
+  "notesPage.openCourse": "Open course",
+  "nav.notes": "Notes",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };
