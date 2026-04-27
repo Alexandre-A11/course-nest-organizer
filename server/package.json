@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Optional self-hosted LAN sync + media streaming server for Course Vault.",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "start": "tsx src/index.js",
+    "dev": "tsx watch src/index.js"
   },
   "engines": {
     "node": ">=20"
@@ -14,6 +14,7 @@
   "dependencies": {
     "better-sqlite3": "^11.3.0",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "tsx": "^4.20.6"
   }
 }
