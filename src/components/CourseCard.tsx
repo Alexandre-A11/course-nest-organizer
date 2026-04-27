@@ -5,7 +5,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { getCategory } from "@/lib/categories";
 import { useI18n, plural } from "@/lib/i18n";
-import { ensurePermission } from "@/lib/fs";
 
 export type CourseViewMode = "grid" | "list" | "compact";
 
@@ -27,19 +26,11 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
   const CatIcon = category?.icon;
   const hasContinue = !!course.lastFileId && files.some((f) => f.id === course.lastFileId);
 
-  // Pre-grant FSA permission while we still have the user gesture from the
-  // click. Avoids the extra "Authorize folder" screen on the course page.
-  const handleClick = () => {
-    if (course.source === "handle" && course.handle) {
-      void ensurePermission(course.handle).catch(() => { /* ignore */ });
-    }
-  };
-
   if (view === "list") {
     return (
       <Link
         to="/course/$courseId"
-        params={{ courseId: course.id }} onClick={handleClick}
+        params={{ courseId: course.id }}
         className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated"
       >
         <div
@@ -94,7 +85,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
     return (
       <Link
         to="/course/$courseId"
-        params={{ courseId: course.id }} onClick={handleClick}
+        params={{ courseId: course.id }}
         className="group relative flex flex-col gap-2 overflow-hidden rounded-xl border border-border bg-card p-3 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated"
       >
         <div className="flex items-center gap-2.5">
@@ -132,7 +123,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
   return (
     <Link
       to="/course/$courseId"
-      params={{ courseId: course.id }} onClick={handleClick}
+      params={{ courseId: course.id }}
       className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated"
     >
       <div
