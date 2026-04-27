@@ -331,6 +331,8 @@ const PT: Dict = {
   "theme.random": "Tema aleatório",
   "theme.randomHint": "Sorteia respeitando o horário do dia",
   "theme.randomPicked": "Tema sorteado",
+  "theme.autoLight": "Tema claro",
+  "theme.autoDark":  "Tema escuro",
 
   // Global notes page
   "notesPage.title": "Notas e snapshots",
@@ -676,6 +678,8 @@ const EN: Dict = {
   "theme.random": "Random theme",
   "theme.randomHint": "Picks based on time of day",
   "theme.randomPicked": "Random theme",
+  "theme.autoLight": "Light theme",
+  "theme.autoDark":  "Dark theme",
 
   "notesPage.title": "Notes & snapshots",
   "notesPage.subtitle": "Search every note and code snapshot you've captured across your courses.",
