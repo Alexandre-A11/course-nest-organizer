@@ -152,39 +152,6 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
           <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="rounded-xl resize-none" />
         </div>
 
-        {/* Folder relink */}
-        <div className="space-y-2">
-          <Label>{t("field.folder")}</Label>
-          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              {pendingHandle || pendingMemoryFiles
-                ? <span className="text-foreground"><strong>{t("field.folderNew")}</strong> {pendingHandle?.name ?? pendingRootName} — {pendingFileCount}</span>
-                : <>{t("field.folderCurrent")} <strong className="text-foreground">{course?.handle?.name ?? course?.rootName ?? course?.name}</strong></>}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={pickNewFolder} disabled={relinking} className="h-8 gap-1.5 rounded-lg text-xs">
-                {relinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FolderOpen className="h-3.5 w-3.5" />}
-                {pendingHandle || pendingMemoryFiles ? t("field.folderChangeAgain") : t("field.folderChange")}
-              </Button>
-              {(pendingHandle || pendingMemoryFiles) && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setPendingHandle(null); setPendingMemoryFiles(null); setPendingFileCount(0); }} className="h-8 gap-1 rounded-lg text-xs">
-                  <X className="h-3.5 w-3.5" /> {t("field.folderCancel")}
-                </Button>
-              )}
-            </div>
-            <input
-              ref={folderFallbackRef}
-              type="file"
-              // @ts-expect-error webkitdirectory non-standard
-              webkitdirectory=""
-              directory=""
-              multiple
-              hidden
-              onChange={handleFallbackFolderPick}
-            />
-          </div>
-        </div>
-
         {/* Category */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
