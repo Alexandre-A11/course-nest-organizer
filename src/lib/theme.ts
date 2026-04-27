@@ -38,3 +38,20 @@ export function applyTheme(id: ThemeId) {
   root.classList.toggle("dark", isDark);
   try { window.localStorage.setItem(STORAGE_KEY, id); } catch { /* ignore */ }
 }
+
+/**
+ * Pick a random theme respecting the time of day.
+ * Daytime (06:00–18:00) → only light themes.
+ * Night (18:00–06:00)   → only dark themes.
+ * Avoids returning the same theme that's already active when possible.
+ */
+export function pickRandomThemeForTime(currentId?: ThemeId): ThemeId {
+  const hour = new Date().getHours();
+  const wantDark = hour < 6 || hour >= 18;
+  const pool = THEMES.filter((t) => t.isDark === wantDark);
+  const candidates = pool.length > 1 && currentId
+    ? pool.filter((t) => t.id !== currentId)
+    : pool;
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  return pick.id;
+}
