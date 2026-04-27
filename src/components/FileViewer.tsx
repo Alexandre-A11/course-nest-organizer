@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2, CheckCircle2, Circle, Download, FileText, FileAudio, File as FileIcon,
   FolderTree, Gauge, Copy, Check, FileDown, EyeOff, Eye, Pause, Play,
-  Maximize2, Minimize2, Tv, Monitor,
+  Maximize2, Minimize2, Tv, Monitor, Code2, NotebookText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
+import { SnapshotsPanel } from "@/components/notes/SnapshotsPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
 import { useI18n } from "@/lib/i18n";
