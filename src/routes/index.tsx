@@ -8,9 +8,7 @@ import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/hooks/use-categories";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
-import { isFsAccessSupported, ensurePermission } from "@/lib/fs";
-import { hasCourseFiles } from "@/lib/sessionFiles";
-import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, AlertTriangle, Settings2, Play } from "lucide-react";
+import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, Settings2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
@@ -88,8 +86,6 @@ function Home() {
     load();
   };
 
-  const supported = isFsAccessSupported();
-
   // Build the list of categories actually used by the user's courses, so
   // we only show filters that lead somewhere.
   const usedCategoryIds = useMemo(() => {
@@ -98,15 +94,6 @@ function Home() {
     return set;
   }, [courses]);
   const visibleCategories = cats.filter((c) => usedCategoryIds.has(c.id));
-
-  // Detect courses whose folder is unavailable in this session.
-  // - "memory" (Firefox/Safari fallback): need user to re-pick the folder.
-  // - "handle" (Chromium FSA): permission may need to be re-granted; we'll
-  //   try to silently restore on user action via the banner button.
-  const missingMemory = useMemo(
-    () => courses.filter((c) => c.source === "memory" && !hasCourseFiles(c.id)),
-    [courses],
-  );
 
   // "Continue where you left off" — most recently opened course.
   const continueCourse = useMemo(() => {
@@ -131,7 +118,7 @@ function Home() {
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         {courses.length === 0 && !loading ? (
-          <EmptyState supported={supported} onAdded={load} />
+          <EmptyState onAdded={load} />
         ) : (
           <>
             <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
@@ -173,11 +160,6 @@ function Home() {
               <Link
                 to="/course/$courseId"
                 params={{ courseId: continueCourse.id }}
-                onClick={() => {
-                  if (continueCourse.source === "handle" && continueCourse.handle) {
-                    void ensurePermission(continueCourse.handle).catch(() => {});
-                  }
-                }}
                 className="mb-5 group flex items-center gap-3 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary-soft/60 via-primary-soft/30 to-transparent p-4 transition-all hover:border-primary/50 hover:shadow-elevated"
               >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-elevated">
@@ -202,25 +184,6 @@ function Home() {
                 </Button>
               </Link>
             )}
-
-            {missingMemory.length > 0 && (
-              <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">
-                    {t("home.missingFolder", {
-                      count: missingMemory.length,
-                      plural: plural(missingMemory.length, lang),
-                      verb: lang === "pt" ? (missingMemory.length !== 1 ? "precisam" : "precisa") : (missingMemory.length !== 1 ? "need" : "needs"),
-                    })}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {missingMemory.map((c) => c.name).join(", ")}. {t("home.missingHint")}
-                  </p>
-                </div>
-              </div>
-            )}
-
 
             {visibleCategories.length > 0 && (
               <div className="mb-5 flex items-center gap-1.5 overflow-x-auto pb-1">
