@@ -2,7 +2,7 @@ import { useEffect, useMemo, useCallback } from "react";
 import {
   ChevronRight, Folder, FolderOpen, PlayCircle, FileText, FileAudio, FileImage,
   File as FileIcon, CheckCircle2, MessageSquare, X, ArrowDownAZ, ArrowUpAZ, ListChecks,
-  ChevronsDownUp, ChevronsUpDown,
+  ChevronsDownUp, ChevronsUpDown, FolderCheck,
 } from "lucide-react";
 import type { CourseFileMeta, FileKind } from "@/lib/db";
 import { buildTree, flattenForGroupedView, type SortMode } from "@/lib/fs";
