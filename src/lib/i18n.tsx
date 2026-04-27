@@ -110,6 +110,24 @@ const PT: Dict = {
   "course.expandAll": "Expandir tudo",
   "course.collapseAll": "Recolher tudo",
 
+  // Code snapshots
+  "snap.tabTitle": "Código",
+  "snap.add": "Novo snapshot",
+  "snap.save": "Salvar snapshot",
+  "snap.titlePh": "Título (opcional) — ex: Componente final",
+  "snap.codePh": "Cole ou escreva seu código aqui…",
+  "snap.empty": "Nenhum snapshot ainda",
+  "snap.emptyHint": "Capture trechos de código que aparecem nesta aula.",
+  "snap.emptyCode": "Adicione algum código antes de salvar.",
+  "snap.created": "Snapshot salvo",
+  "snap.updated": "Snapshot atualizado",
+  "snap.removed": "Snapshot removido",
+  "snap.copied": "Código copiado",
+  "snap.copy": "Copiar código",
+  "snap.edit": "Editar",
+  "snap.delete": "Remover",
+  "snap.count": "{n} snapshot(s)",
+
   // Add/Edit dialog
   "add.title": "Novo curso",
   "add.subtitle": "Selecione a pasta do curso. Tudo fica no seu dispositivo.",
