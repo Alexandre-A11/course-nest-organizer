@@ -18,6 +18,27 @@ export interface CourseFileMeta {
   updatedAt?: number;
 }
 
+/**
+ * A code snapshot belonging to a specific lesson file. Each video/document can
+ * accumulate its own history of code blocks captured while studying. Snapshots
+ * are synced via the standard last-write-wins layer and surfaced both in the
+ * file viewer (Code tab) and in the global /notes dashboard.
+ */
+export interface CodeSnapshot {
+  id: string;             // ulid-ish: `${fileId}:${createdAt}:${rand}`
+  fileId: string;         // CourseFileMeta.id
+  courseId: string;
+  /** Highlight.js language name — js, ts, tsx, python, java, rust, dockerfile… */
+  language: string;
+  code: string;
+  /** Optional short label ("Component skeleton", "Final hook"). */
+  title?: string;
+  createdAt: number;
+  updatedAt?: number;
+  /** Tombstone flag — soft-deleted snapshots are kept for sync propagation. */
+  deleted?: boolean;
+}
+
 export interface Course {
   id: string;
   name: string;
@@ -80,6 +101,11 @@ interface Schema extends DBSchema {
     value: { id: string; courseId: string; blob: Blob };
     indexes: { byCourse: string };
   };
+  snapshots: {
+    key: string;
+    value: CodeSnapshot;
+    indexes: { byFile: string; byCourse: string };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<Schema>> | null = null;
@@ -89,7 +115,7 @@ export function getDB() {
     return Promise.reject(new Error("DB only available in the browser"));
   }
   if (!dbPromise) {
-    dbPromise = openDB<Schema>("course-vault", 2, {
+    dbPromise = openDB<Schema>("course-vault", 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           db.createObjectStore("courses", { keyPath: "id" });
@@ -99,6 +125,11 @@ export function getDB() {
         if (oldVersion < 2) {
           const blobs = db.createObjectStore("fileBlobs", { keyPath: "id" });
           blobs.createIndex("byCourse", "courseId");
+        }
+        if (oldVersion < 3) {
+          const snaps = db.createObjectStore("snapshots", { keyPath: "id" });
+          snaps.createIndex("byFile", "fileId");
+          snaps.createIndex("byCourse", "courseId");
         }
       },
     });
