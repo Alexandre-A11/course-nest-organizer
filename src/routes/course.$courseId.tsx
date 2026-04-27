@@ -68,7 +68,15 @@ function CoursePage() {
       setFlatViewState(c.flattenFolders ? "on" : "off");
       setFocusFolderState(c.focusedFolder ?? null);
       setSortModeState(c.sortMode ?? "natural");
-      setExpandedFoldersState(c.expandedFolders ?? []);
+      // First-time hydration: when the course has never persisted an
+      // expansion set, seed it with the top-level folder paths so the tree
+      // opens at depth 0 by default. Subsequent loads always honour the
+      // persisted array — including an explicit empty array from "Collapse all".
+      if (Array.isArray(c.expandedFolders)) {
+        setExpandedFoldersState(c.expandedFolders);
+      } else {
+        setExpandedFoldersState([]); // will be filled in once files load below
+      }
       if (c.source === "remote") {
         // Remote courses stream over HTTP — no local permission needed.
       } else if (c.source === "cached") {
@@ -95,6 +103,16 @@ function CoursePage() {
       }
       const fs = await listFiles(courseId);
       setFiles(fs);
+      // First-load fallback for the FileTree expansion: if the course has
+      // never had a persisted set, open every top-level folder by default.
+      if (!Array.isArray(c.expandedFolders)) {
+        const top = new Set<string>();
+        for (const f of fs) {
+          const i = f.path.indexOf("/");
+          if (i > 0) top.add(f.path.slice(0, i));
+        }
+        setExpandedFoldersState(Array.from(top));
+      }
       // Auto-select last opened file if it still exists.
       if (c.lastFileId && fs.some((f) => f.id === c.lastFileId)) {
         setSelectedId(c.lastFileId);

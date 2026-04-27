@@ -541,6 +541,51 @@
 }
 
 /* ============================================================
+ * Live Prism syntax highlighting — used by the snapshots editor.
+ * Tokens reuse the same colour scale as .cv-code so both static
+ * (highlight.js) and live (Prism) views look identical across themes.
+ * ============================================================ */
+.cv-prism { color: var(--color-foreground); }
+.cv-prism .token.comment,
+.cv-prism .token.prolog,
+.cv-prism .token.doctype,
+.cv-prism .token.cdata { color: color-mix(in oklab, var(--color-muted-foreground) 90%, transparent); font-style: italic; }
+.cv-prism .token.punctuation { color: color-mix(in oklab, var(--color-foreground) 75%, transparent); }
+.cv-prism .token.property,
+.cv-prism .token.tag,
+.cv-prism .token.boolean,
+.cv-prism .token.number,
+.cv-prism .token.constant,
+.cv-prism .token.symbol,
+.cv-prism .token.deleted { color: oklch(0.65 0.18 30); }
+.cv-prism .token.selector,
+.cv-prism .token.attr-name,
+.cv-prism .token.string,
+.cv-prism .token.char,
+.cv-prism .token.builtin,
+.cv-prism .token.inserted { color: oklch(0.62 0.16 152); }
+.cv-prism .token.operator,
+.cv-prism .token.entity,
+.cv-prism .token.url,
+.cv-prism .language-css .token.string,
+.cv-prism .style .token.string { color: oklch(0.55 0.13 250); }
+.cv-prism .token.atrule,
+.cv-prism .token.attr-value,
+.cv-prism .token.keyword { color: oklch(0.62 0.21 290); }
+.cv-prism .token.function,
+.cv-prism .token.class-name { color: oklch(0.65 0.16 220); font-weight: 600; }
+.cv-prism .token.regex,
+.cv-prism .token.important,
+.cv-prism .token.variable { color: oklch(0.6 0.18 24); }
+.cv-prism .token.important,
+.cv-prism .token.bold { font-weight: 700; }
+.cv-prism .token.italic { font-style: italic; }
+/* Editor caret + selection colours so the textarea overlay matches the
+   token surface in every theme. */
+.live-code-editor textarea { caret-color: var(--color-primary); }
+.live-code-editor textarea::selection { background: color-mix(in oklab, var(--color-primary) 30%, transparent); }
+
+/* ============================================================
  * THEME: Sepia (warm editorial paper light)
  * ============================================================ */
 [data-theme="sepia"] {

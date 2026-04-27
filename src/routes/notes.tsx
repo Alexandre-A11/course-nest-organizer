@@ -10,14 +10,15 @@ import {
   ToggleGroup, ToggleGroupItem,
 } from "@/components/ui/toggle-group";
 import {
-  getDB, type Course, type CourseFileMeta, type CodeSnapshot,
+  getDB, setFileComment, deleteSnapshot, restoreSnapshot,
+  type Course, type CourseFileMeta, type CodeSnapshot,
 } from "@/lib/db";
 import { highlightCode, languageLabel, SUPPORTED_LANGUAGES } from "@/lib/highlight";
 import { useI18n } from "@/lib/i18n";
 import { getCategory } from "@/lib/categories";
 import {
   Search, NotebookPen, Code2, FileText, PlayCircle, FileAudio, FileImage, File as FileIcon,
-  ExternalLink, Copy, X,
+  ExternalLink, Copy, X, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -82,6 +83,52 @@ function NotesPage() {
   const [query, setQuery] = useState("");
   const [courseId, setCourseId] = useState<string>("__all");
   const [language, setLanguage] = useState<string>("__all");
+
+  // ---------- Delete handlers (with Undo toasts) ----------
+
+  const handleDeleteNote = async (row: NoteRow) => {
+    const previous = row.html;
+    // Optimistic remove from the list.
+    setNotes((prev) => prev.filter((n) => n.fileId !== row.fileId));
+    await setFileComment(row.fileId, undefined);
+    toast.success(t("note.deleted"), {
+      action: {
+        label: t("snap.undo"),
+        onClick: async () => {
+          const restored = await setFileComment(row.fileId, previous);
+          if (restored) {
+            setNotes((prev) => {
+              if (prev.some((n) => n.fileId === row.fileId)) return prev;
+              return [{ ...row, html: previous, updatedAt: restored.updatedAt ?? Date.now() }, ...prev]
+                .sort((a, b) => b.updatedAt - a.updatedAt);
+            });
+            toast.success(t("note.restored"));
+          }
+        },
+      },
+    });
+  };
+
+  const handleDeleteSnap = async (row: SnapRow) => {
+    setSnaps((prev) => prev.filter((s) => s.id !== row.id));
+    await deleteSnapshot(row.id);
+    toast.success(t("snap.deleted"), {
+      action: {
+        label: t("snap.undo"),
+        onClick: async () => {
+          const restored = await restoreSnapshot(row.id);
+          if (restored) {
+            setSnaps((prev) => {
+              if (prev.some((s) => s.id === row.id)) return prev;
+              return [{ ...row, ...restored }, ...prev]
+                .sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt));
+            });
+            toast.success(t("snap.restored"));
+          }
+        },
+      },
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -271,7 +318,7 @@ function NotesPage() {
                 ) : (
                   <ul className="grid gap-3 sm:grid-cols-2">
                     {filteredNotes.map((n) => (
-                      <NoteCard key={n.fileId} row={n} query={query} />
+                      <NoteCard key={n.fileId} row={n} query={query} onDelete={() => handleDeleteNote(n)} />
                     ))}
                   </ul>
                 )}
@@ -288,7 +335,7 @@ function NotesPage() {
                 ) : (
                   <ul className="space-y-3">
                     {filteredSnaps.map((s) => (
-                      <SnapCard key={s.id} row={s} />
+                      <SnapCard key={s.id} row={s} onDelete={() => handleDeleteSnap(s)} />
                     ))}
                   </ul>
                 )}
@@ -335,7 +382,8 @@ function CourseTag({ name, category }: { name: string; category?: string }) {
   );
 }
 
-function NoteCard({ row, query }: { row: NoteRow; query: string }) {
+function NoteCard({ row, query, onDelete }: { row: NoteRow; query: string; onDelete: () => void }) {
+  const { t } = useI18n();
   const Icon = KIND_ICON[row.fileKind] ?? FileIcon;
   const snippet = useMemo(() => {
     const text = row.text;
@@ -347,12 +395,19 @@ function NoteCard({ row, query }: { row: NoteRow; query: string }) {
     return (start > 0 ? "…" : "") + text.slice(start, start + 220);
   }, [row.text, query]);
   return (
-    <li className="group rounded-2xl border border-border bg-card p-4 shadow-soft transition-shadow hover:shadow-elevated">
+    <li className="group flex max-h-96 flex-col overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-soft transition-shadow hover:shadow-elevated">
       <div className="mb-2 flex items-center gap-2 text-xs">
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium text-foreground">{row.fileName}</span>
+        <button
+          onClick={onDelete}
+          title={t("snap.delete")}
+          className="ml-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <p className="line-clamp-4 text-sm text-muted-foreground">{snippet}</p>
+      <p className="overflow-y-auto text-sm text-muted-foreground">{snippet}</p>
       <div className="mt-3 flex items-center justify-between gap-2">
         <CourseTag name={row.courseName} category={row.courseCategory} />
         <Link
@@ -360,7 +415,7 @@ function NoteCard({ row, query }: { row: NoteRow; query: string }) {
           params={{ courseId: row.courseId }}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
         >
-          {row.courseName ? "Abrir" : "Open"}
+          {t("notesPage.openCourse")}
           <ExternalLink className="h-3 w-3" />
         </Link>
       </div>
@@ -368,7 +423,7 @@ function NoteCard({ row, query }: { row: NoteRow; query: string }) {
   );
 }
 
-function SnapCard({ row }: { row: SnapRow }) {
+function SnapCard({ row, onDelete }: { row: SnapRow; onDelete: () => void }) {
   const { t } = useI18n();
   const Icon = KIND_ICON[row.fileKind] ?? FileIcon;
   const html = useMemo(() => highlightCode(row.code, row.language), [row.code, row.language]);
@@ -380,7 +435,7 @@ function SnapCard({ row }: { row: SnapRow }) {
     } catch { toast.error(t("toast.copyErr")); }
   };
   return (
-    <li className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <li className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
       <div className="flex items-start justify-between gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -415,9 +470,16 @@ function SnapCard({ row }: { row: SnapRow }) {
           >
             <ExternalLink className="h-3 w-3" />
           </Link>
+          <Button
+            size="sm" variant="ghost" onClick={onDelete}
+            className="h-7 gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            title={t("snap.delete")}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
         </div>
       </div>
-      <pre className="cv-code rounded-none border-0">
+      <pre className="cv-code max-h-96 overflow-auto rounded-none border-0">
         <code className="hljs" dangerouslySetInnerHTML={{ __html: html }} />
       </pre>
     </li>

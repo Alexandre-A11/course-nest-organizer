@@ -180,6 +180,15 @@ export async function deleteCourse(id: string) {
     c2 = await c2.continue();
   }
   await tx2.done;
+  // Wipe code snapshots for this course (mirrors the notes cascade above).
+  const tx3 = db.transaction("snapshots", "readwrite");
+  const idx3 = tx3.store.index("byCourse");
+  let c3 = await idx3.openCursor(id);
+  while (c3) {
+    await c3.delete();
+    c3 = await c3.continue();
+  }
+  await tx3.done;
   // Remember the deletion so sync can propagate it.
   rememberDeletedCourse(id);
 }
@@ -248,7 +257,7 @@ export async function deleteCourseBlobs(courseId: string) {
  */
 export async function resetCourseProgress(courseId: string, keepNotes = false) {
   const db = await getDB();
-  const tx = db.transaction(["files", "courses"], "readwrite");
+  const tx = db.transaction(["files", "courses", "snapshots"], "readwrite");
   const filesStore = tx.objectStore("files");
   const idx = filesStore.index("byCourse");
   let cursor = await idx.openCursor(courseId);
@@ -271,6 +280,20 @@ export async function resetCourseProgress(courseId: string, keepNotes = false) {
       ...c, lastFileId: undefined, lastAccessedAt: undefined, updatedAt: now,
     });
   }
+  // Snapshots reset alongside notes: when keepNotes is false we tombstone every
+  // code snapshot so peers converge to the same empty state.
+  if (!keepNotes) {
+    const snapsStore = tx.objectStore("snapshots");
+    const sIdx = snapsStore.index("byCourse");
+    let sCur = await sIdx.openCursor(courseId);
+    while (sCur) {
+      const s = sCur.value as CodeSnapshot;
+      if (!s.deleted) {
+        await sCur.update({ ...s, deleted: true, updatedAt: now });
+      }
+      sCur = await sCur.continue();
+    }
+  }
   await tx.done;
 }
 
@@ -289,6 +312,33 @@ export async function saveFileProgress(fileId: string, seconds: number) {
   const f = await db.get("files", fileId);
   if (!f) return;
   await db.put("files", { ...f, progress: seconds, updatedAt: Date.now() });
+}
+
+/**
+ * Clear (or restore) the rich-text note attached to a file. Used by the
+ * global /notes dashboard so the user can remove a note without opening the
+ * course. Returns the updated meta (or undefined if the file is missing).
+ */
+export async function setFileComment(
+  fileId: string,
+  comment: string | undefined,
+): Promise<CourseFileMeta | undefined> {
+  const db = await getDB();
+  const f = await db.get("files", fileId);
+  if (!f) return undefined;
+  const next: CourseFileMeta = { ...f, comment, updatedAt: Date.now() };
+  await db.put("files", next);
+  return next;
+}
+
+/** Restore a previously soft-deleted snapshot (Undo for /notes deletes). */
+export async function restoreSnapshot(id: string): Promise<CodeSnapshot | undefined> {
+  const db = await getDB();
+  const cur = await db.get("snapshots", id);
+  if (!cur) return undefined;
+  const next: CodeSnapshot = { ...cur, deleted: false, updatedAt: Date.now() };
+  await db.put("snapshots", next);
+  return next;
 }
 
 // ---- Deletion log (so sync can propagate removals) ----

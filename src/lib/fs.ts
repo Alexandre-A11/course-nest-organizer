@@ -1,7 +1,7 @@
 import type { CourseFileMeta, FileKind } from "./db";
 import { getFileBlob } from "./db";
 
-const VIDEO_EXT = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
+const VIDEO_EXT = ["mp4", "mkv", "webm", "mov", "m4v", "avi", "ts"];
 const AUDIO_EXT = ["mp3", "m4a", "wav", "ogg", "flac"];
 const DOC_EXT = ["txt", "md", "rtf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv", "html", "json", "zip", "rar"];
 const IMAGE_EXT = ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"];

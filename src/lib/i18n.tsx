@@ -127,6 +127,14 @@ const PT: Dict = {
   "snap.edit": "Editar",
   "snap.delete": "Remover",
   "snap.count": "{n} snapshot(s)",
+  "snap.format": "Formatar código",
+  "snap.formatted": "Código formatado",
+  "snap.formatErr": "Não foi possível formatar este código",
+  "snap.deleted": "Snapshot removido",
+  "snap.undo": "Desfazer",
+  "snap.restored": "Snapshot restaurado",
+  "note.deleted": "Anotação removida",
+  "note.restored": "Anotação restaurada",
 
   // Add/Edit dialog
   "add.title": "Novo curso",
@@ -331,6 +339,8 @@ const PT: Dict = {
   "theme.random": "Tema aleatório",
   "theme.randomHint": "Sorteia respeitando o horário do dia",
   "theme.randomPicked": "Tema sorteado",
+  "theme.autoLight": "Tema claro",
+  "theme.autoDark":  "Tema escuro",
 
   // Global notes page
   "notesPage.title": "Notas e snapshots",
@@ -480,6 +490,14 @@ const EN: Dict = {
   "snap.copied": "Code copied",
   "snap.copy": "Copy code",
   "snap.edit": "Edit",
+  "snap.format": "Format code",
+  "snap.formatted": "Code formatted",
+  "snap.formatErr": "Could not format this code",
+  "snap.deleted": "Snapshot removed",
+  "snap.undo": "Undo",
+  "snap.restored": "Snapshot restored",
+  "note.deleted": "Note removed",
+  "note.restored": "Note restored",
   "snap.delete": "Remove",
   "snap.count": "{n} snapshot(s)",
 
@@ -676,6 +694,8 @@ const EN: Dict = {
   "theme.random": "Random theme",
   "theme.randomHint": "Picks based on time of day",
   "theme.randomPicked": "Random theme",
+  "theme.autoLight": "Light theme",
+  "theme.autoDark":  "Dark theme",
 
   "notesPage.title": "Notes & snapshots",
   "notesPage.subtitle": "Search every note and code snapshot you've captured across your courses.",

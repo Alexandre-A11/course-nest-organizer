@@ -2,7 +2,7 @@ import { useEffect, useMemo, useCallback } from "react";
 import {
   ChevronRight, Folder, FolderOpen, PlayCircle, FileText, FileAudio, FileImage,
   File as FileIcon, CheckCircle2, MessageSquare, X, ArrowDownAZ, ArrowUpAZ, ListChecks,
-  ChevronsDownUp, ChevronsUpDown,
+  ChevronsDownUp, ChevronsUpDown, FolderCheck,
 } from "lucide-react";
 import type { CourseFileMeta, FileKind } from "@/lib/db";
 import { buildTree, flattenForGroupedView, type SortMode } from "@/lib/fs";
@@ -93,6 +93,26 @@ export function FileTree({
 
   const expandedSet = useMemo(() => new Set(expandedFolders ?? []), [expandedFolders]);
 
+  /**
+   * Map of folder path → completion stats so we can flag fully-watched
+   * folders with a check icon. A folder is "complete" only when it contains
+   * at least one file and every descendant file is `watched`.
+   */
+  const folderProgress = useMemo(() => {
+    const map = new Map<string, { total: number; done: number }>();
+    for (const f of visible) {
+      const parts = f.path.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const p = parts.slice(0, i).join("/");
+        const cur = map.get(p) ?? { total: 0, done: 0 };
+        cur.total += 1;
+        if (f.watched) cur.done += 1;
+        map.set(p, cur);
+      }
+    }
+    return map;
+  }, [visible]);
+
   const toggleFolder = (path: string) => {
     if (!onExpandedFoldersChange) return;
     const next = new Set(expandedSet);
@@ -101,6 +121,11 @@ export function FileTree({
   };
 
   const expandAll = () => onExpandedFoldersChange?.(allFolderPaths);
+  /**
+   * Fully recursive collapse: even when sub-folders had been previously
+   * expanded, an empty array now wins because TreeNode no longer auto-opens
+   * top-level entries when the persisted set is empty.
+   */
   const collapseAll = () => onExpandedFoldersChange?.([]);
 
   const sortMenu = (
@@ -186,7 +211,7 @@ export function FileTree({
           selectedIds={selectedIds}
           expandedSet={expandedSet}
           onToggleFolder={toggleFolder}
-          defaultOpen={true}
+          folderProgress={folderProgress}
         />
       ))}
     </div>
@@ -262,7 +287,7 @@ type Node = ReturnType<typeof buildTree>;
 
 function TreeNode({
   node, depth, selectedId, onClick, onFocusFolder, highlightFolder, selectedIds,
-  expandedSet, onToggleFolder, defaultOpen,
+  expandedSet, onToggleFolder, folderProgress,
 }: {
   node: Node;
   depth: number;
@@ -273,15 +298,14 @@ function TreeNode({
   selectedIds?: Set<string>;
   expandedSet: Set<string>;
   onToggleFolder: (path: string) => void;
-  defaultOpen: boolean;
+  folderProgress: Map<string, { total: number; done: number }>;
 }) {
   const { t } = useI18n();
   const isFolder = !node.file;
 
-  // Folder open state: persisted set wins; otherwise default for top level.
-  const open = isFolder
-    ? (expandedSet.has(node.path) || (depth < 1 && defaultOpen && expandedSet.size === 0))
-    : false;
+  // Folder open state: persisted set is the single source of truth so
+  // "Collapse all" can fully close every level (including top-level folders).
+  const open = isFolder ? expandedSet.has(node.path) : false;
 
   const isHighlighted = highlightFolder === node.path;
   const containsHighlight = isFolder && highlightFolder
@@ -297,6 +321,8 @@ function TreeNode({
   }, [containsHighlight]);
 
   if (isFolder) {
+    const stats = folderProgress.get(node.path);
+    const completed = !!stats && stats.total > 0 && stats.done === stats.total;
     return (
       <div>
         <div
@@ -311,8 +337,17 @@ function TreeNode({
             className="flex flex-1 items-center gap-1.5 px-1 py-1.5 text-left text-sm font-medium text-foreground"
           >
             <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
-            {open ? <FolderOpen className="h-4 w-4 shrink-0 text-primary" /> : <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />}
-            <span className="truncate">{node.name}</span>
+            {completed ? (
+              <FolderCheck className="h-4 w-4 shrink-0 text-success" />
+            ) : open ? (
+              <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
+            ) : (
+              <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+            <span className={cn("truncate", completed && "text-success")}>{node.name}</span>
+            {completed && (
+              <CheckCircle2 className="h-3 w-3 shrink-0 text-success/80" />
+            )}
           </button>
           {onFocusFolder && (
             <button
@@ -338,7 +373,7 @@ function TreeNode({
                 selectedIds={selectedIds}
                 expandedSet={expandedSet}
                 onToggleFolder={onToggleFolder}
-                defaultOpen={defaultOpen}
+                folderProgress={folderProgress}
               />
             ))}
           </div>
