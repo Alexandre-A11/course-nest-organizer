@@ -349,6 +349,22 @@ const PT: Dict = {
   "nav.notes": "Notas",
   "course.openFiles": "Arquivos do curso",
   "course.files": "Arquivos",
+
+  // Tags
+  "tags.label": "Tags",
+  "tags.placeholder": "Adicionar tag e Enter…",
+  "tags.empty": "Nenhuma tag",
+  "tags.remove": "Remover tag",
+
+  // Home sorting & favorites
+  "home.sortLabel": "Ordenar",
+  "home.sortRecent": "Recentes",
+  "home.sortNewest": "Mais novos",
+  "home.sortName": "Nome (A→Z)",
+  "home.sortFavorites": "Favoritos primeiro",
+  "home.favoriteAdd": "Marcar como favorito",
+  "home.favoriteRemove": "Desfavoritar",
+  "home.favoritesOnly": "Só favoritos",
 };
 
 const EN: Dict = {
@@ -677,6 +693,20 @@ const EN: Dict = {
   "nav.notes": "Notes",
   "course.openFiles": "Course files",
   "course.files": "Files",
+
+  "tags.label": "Tags",
+  "tags.placeholder": "Add tag and press Enter…",
+  "tags.empty": "No tags",
+  "tags.remove": "Remove tag",
+
+  "home.sortLabel": "Sort",
+  "home.sortRecent": "Recent",
+  "home.sortNewest": "Newest",
+  "home.sortName": "Name (A→Z)",
+  "home.sortFavorites": "Favorites first",
+  "home.favoriteAdd": "Mark as favorite",
+  "home.favoriteRemove": "Unfavorite",
+  "home.favoritesOnly": "Favorites only",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };

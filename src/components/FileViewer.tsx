@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
 import { SnapshotsPanel } from "@/components/notes/SnapshotsPanel";
+import { TagEditor } from "@/components/notes/TagEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
@@ -49,6 +50,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   const [comment, setComment] = useState(file.comment ?? "");
   const [savingComment, setSavingComment] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [tags, setTags] = useState<string[]>(file.tags ?? []);
   const [pathCopied, setPathCopied] = useState(false);
   const [notesVisible, setNotesVisible] = usePref<"on" | "off">("notes.visible", "on");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -124,7 +126,8 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
   // Sync local comment state when file changes (separate from blob effect).
   useEffect(() => {
     setComment(file.comment ?? "");
-  }, [file.id, file.comment]);
+    setTags(file.tags ?? []);
+  }, [file.id, file.comment, file.tags]);
 
   // Apply persisted speed when media element mounts / file changes
   useEffect(() => {
@@ -241,6 +244,13 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1200);
     }, 500);
+  };
+
+  const handleTagsChange = async (next: string[]) => {
+    setTags(next);
+    const updated = { ...file, tags: next.length ? next : undefined };
+    await upsertFile(updated);
+    onUpdated(updated);
   };
 
   // Pause-on-type lifecycle: when the user focuses the editor, pause; when they
@@ -568,6 +578,7 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="notes" className="m-0 flex-1 overflow-auto px-4 py-3 sm:px-6">
+                <TagEditor value={tags} onChange={handleTagsChange} className="mb-3" />
                 <RichNoteEditor
                   value={comment}
                   onChange={handleCommentChange}

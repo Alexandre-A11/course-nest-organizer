@@ -7,11 +7,12 @@ import { EditCourseDialog } from "@/components/EditCourseDialog";
 import { getCategory } from "@/lib/categories";
 import { useCategories } from "@/hooks/use-categories";
 import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
-import { listCourses, listFiles, deleteCourse, type Course, type CourseFileMeta } from "@/lib/db";
-import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, Settings2, Play } from "lucide-react";
+import { listCourses, listFiles, deleteCourse, saveCourse, type Course, type CourseFileMeta } from "@/lib/db";
+import { GraduationCap, Sparkles, ShieldCheck, Cpu, LayoutGrid, List, Rows3, X, Settings2, Play, ArrowDownUp, Star } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { usePref } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { useI18n, relativeTime, plural } from "@/lib/i18n";
@@ -31,6 +32,8 @@ export const Route = createFileRoute("/")({
   }),
 });
 
+type HomeSort = "recent" | "newest" | "name" | "favorites";
+
 function Home() {
   const { t, lang } = useI18n();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -40,6 +43,8 @@ function Home() {
   const [editing, setEditing] = useState<Course | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [view, setView] = usePref<CourseViewMode>("home.view", "grid");
+  const [sort, setSort] = usePref<HomeSort>("home.sort", "recent");
+  const [favoritesOnly, setFavoritesOnly] = usePref<"on" | "off">("home.favoritesOnly", "off");
   const [manageCats, setManageCats] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
@@ -108,9 +113,46 @@ function Home() {
   }, [continueCourse, filesByCourse]);
 
   const filteredCourses = useMemo(() => {
-    if (!categoryFilter) return courses;
-    return courses.filter((c) => c.category === categoryFilter);
-  }, [courses, categoryFilter]);
+    let list = courses;
+    if (categoryFilter) list = list.filter((c) => c.category === categoryFilter);
+    if (favoritesOnly === "on") list = list.filter((c) => c.favorite);
+
+    const sorted = [...list];
+    switch (sort) {
+      case "name":
+        sorted.sort((a, b) => a.name.localeCompare(b.name, lang));
+        break;
+      case "newest":
+        sorted.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+        break;
+      case "recent":
+        sorted.sort((a, b) => (b.lastAccessedAt ?? b.updatedAt ?? b.createdAt ?? 0)
+                             - (a.lastAccessedAt ?? a.updatedAt ?? a.createdAt ?? 0));
+        break;
+      case "favorites":
+        sorted.sort((a, b) => {
+          const fa = a.favorite ? 1 : 0;
+          const fb = b.favorite ? 1 : 0;
+          if (fa !== fb) return fb - fa;
+          return (b.lastAccessedAt ?? b.createdAt ?? 0) - (a.lastAccessedAt ?? a.createdAt ?? 0);
+        });
+        break;
+    }
+    return sorted;
+  }, [courses, categoryFilter, favoritesOnly, sort, lang]);
+
+  const sortLabel = useMemo(() => {
+    if (sort === "name") return t("home.sortName");
+    if (sort === "newest") return t("home.sortNewest");
+    if (sort === "favorites") return t("home.sortFavorites");
+    return t("home.sortRecent");
+  }, [sort, t]);
+
+  const handleToggleFavorite = async (c: Course) => {
+    const next: Course = { ...c, favorite: !c.favorite };
+    await saveCourse(next);
+    setCourses((prev) => prev.map((x) => (x.id === c.id ? next : x)));
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -132,6 +174,40 @@ function Home() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl" title={t("home.sortLabel")}>
+                      <ArrowDownUp className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">{sortLabel}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="rounded-xl">
+                    <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t("home.sortLabel")}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setSort("recent")} className={cn(sort === "recent" && "font-semibold text-primary")}>
+                      {t("home.sortRecent")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSort("newest")} className={cn(sort === "newest" && "font-semibold text-primary")}>
+                      {t("home.sortNewest")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSort("name")} className={cn(sort === "name" && "font-semibold text-primary")}>
+                      {t("home.sortName")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSort("favorites")} className={cn(sort === "favorites" && "font-semibold text-primary")}>
+                      {t("home.sortFavorites")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setFavoritesOnly(favoritesOnly === "on" ? "off" : "on")}
+                      className={cn(favoritesOnly === "on" && "font-semibold text-primary")}
+                    >
+                      <Star className={cn("mr-2 h-3.5 w-3.5", favoritesOnly === "on" && "fill-current")} />
+                      {t("home.favoritesOnly")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <ToggleGroup
                   type="single"
                   value={view}
@@ -253,6 +329,7 @@ function Home() {
                     files={filesByCourse[c.id] ?? []}
                     onDelete={() => setConfirmDelete(c)}
                     onEdit={() => setEditing(c)}
+                    onToggleFavorite={() => void handleToggleFavorite(c)}
                     view={view}
                   />
                 ))}
@@ -345,6 +422,7 @@ function courseFingerprint(c: Course): string {
   return [
     c.id, c.name, c.description ?? "", c.color, c.category ?? "",
     c.banner ? "B" : "-", c.lastFileId ?? "", c.lastAccessedAt ?? 0,
+    c.favorite ? "F" : "-",
     c.updatedAt ?? c.createdAt ?? 0,
   ].join("|");
 }

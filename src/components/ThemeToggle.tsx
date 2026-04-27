@@ -1,7 +1,7 @@
 import { useTheme } from "@/components/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Palette, Check, Sun, Moon, Shuffle } from "lucide-react";
+import { Palette, Check, Sun, Moon, Shuffle, Wand2, Clock } from "lucide-react";
 import { pickRandomThemeForTime } from "@/lib/theme";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
@@ -18,6 +18,9 @@ export function ThemeToggle() {
     if (picked) toast.success(`${t("theme.randomPicked")}: ${picked.name}`);
   };
 
+  const specials = themes.filter((th) => th.isSpecial);
+  const presets = themes.filter((th) => !th.isSpecial);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -26,7 +29,7 @@ export function ThemeToggle() {
           <Palette className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 rounded-xl p-1.5">
+      <DropdownMenuContent align="end" className="max-h-[80vh] w-64 overflow-y-auto rounded-xl p-1.5">
         <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
           Tema
         </DropdownMenuLabel>
@@ -44,7 +47,28 @@ export function ThemeToggle() {
           </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {themes.map((th) => {
+        {specials.map((th) => {
+          const active = th.id === theme;
+          const Icon = th.id === "auto" ? Clock : Wand2;
+          return (
+            <DropdownMenuItem
+              key={th.id}
+              onClick={() => setTheme(th.id)}
+              className="flex items-center gap-3 rounded-lg py-2"
+            >
+              <div className="flex h-8 w-12 items-center justify-center rounded-md bg-gradient-to-br from-primary/15 via-secondary to-card ring-1 ring-border">
+                <Icon className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="flex-1 leading-tight">
+                <div className="text-sm font-medium text-foreground">{th.name}</div>
+                <div className="text-[11px] text-muted-foreground">{th.description}</div>
+              </div>
+              {active && <Check className="h-4 w-4 text-primary" />}
+            </DropdownMenuItem>
+          );
+        })}
+        <DropdownMenuSeparator />
+        {presets.map((th) => {
           const active = th.id === theme;
           return (
             <DropdownMenuItem
