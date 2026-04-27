@@ -14,6 +14,11 @@ export interface CourseFileMeta {
   comment?: string;
   /** For videos/audio: last currentTime in SECONDS where the user paused. */
   progress?: number;
+  /**
+   * User-defined tags for grouping / search across the global /notes page
+   * (e.g. "hooks", "exam", "review"). Lower-cased on save, kept short.
+   */
+  tags?: string[];
   /** Last local mutation timestamp (ms). Used by the sync layer. */
   updatedAt?: number;
 }
