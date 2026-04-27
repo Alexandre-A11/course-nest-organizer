@@ -241,7 +241,7 @@ function safeJoin(base, ...parts) {
   return target;
 }
 
-const VIDEO_EXT = new Set(["mp4", "mkv", "webm", "mov", "m4v", "avi"]);
+const VIDEO_EXT = new Set(["mp4", "mkv", "webm", "mov", "m4v", "avi", "ts"]);
 const AUDIO_EXT = new Set(["mp3", "m4a", "wav", "ogg", "flac"]);
 const DOC_EXT = new Set(["txt", "md", "rtf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv", "html", "json", "zip", "rar"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp"]);
@@ -333,7 +333,7 @@ app.get("/folders/:folder/scan", async (req, res) => {
 
 const MIME = {
   mp4: "video/mp4", mkv: "video/x-matroska", webm: "video/webm", mov: "video/quicktime",
-  m4v: "video/mp4", avi: "video/x-msvideo",
+  m4v: "video/mp4", avi: "video/x-msvideo", ts: "video/mp2t",
   mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg", flac: "audio/flac",
   pdf: "application/pdf",
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif",
