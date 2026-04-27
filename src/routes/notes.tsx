@@ -382,7 +382,8 @@ function CourseTag({ name, category }: { name: string; category?: string }) {
   );
 }
 
-function NoteCard({ row, query }: { row: NoteRow; query: string }) {
+function NoteCard({ row, query, onDelete }: { row: NoteRow; query: string; onDelete: () => void }) {
+  const { t } = useI18n();
   const Icon = KIND_ICON[row.fileKind] ?? FileIcon;
   const snippet = useMemo(() => {
     const text = row.text;
@@ -394,12 +395,19 @@ function NoteCard({ row, query }: { row: NoteRow; query: string }) {
     return (start > 0 ? "…" : "") + text.slice(start, start + 220);
   }, [row.text, query]);
   return (
-    <li className="group rounded-2xl border border-border bg-card p-4 shadow-soft transition-shadow hover:shadow-elevated">
+    <li className="group flex max-h-96 flex-col overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-soft transition-shadow hover:shadow-elevated">
       <div className="mb-2 flex items-center gap-2 text-xs">
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium text-foreground">{row.fileName}</span>
+        <button
+          onClick={onDelete}
+          title={t("snap.delete")}
+          className="ml-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <p className="line-clamp-4 text-sm text-muted-foreground">{snippet}</p>
+      <p className="overflow-y-auto text-sm text-muted-foreground">{snippet}</p>
       <div className="mt-3 flex items-center justify-between gap-2">
         <CourseTag name={row.courseName} category={row.courseCategory} />
         <Link
@@ -407,7 +415,7 @@ function NoteCard({ row, query }: { row: NoteRow; query: string }) {
           params={{ courseId: row.courseId }}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
         >
-          {row.courseName ? "Abrir" : "Open"}
+          {t("notesPage.openCourse")}
           <ExternalLink className="h-3 w-3" />
         </Link>
       </div>
@@ -415,7 +423,7 @@ function NoteCard({ row, query }: { row: NoteRow; query: string }) {
   );
 }
 
-function SnapCard({ row }: { row: SnapRow }) {
+function SnapCard({ row, onDelete }: { row: SnapRow; onDelete: () => void }) {
   const { t } = useI18n();
   const Icon = KIND_ICON[row.fileKind] ?? FileIcon;
   const html = useMemo(() => highlightCode(row.code, row.language), [row.code, row.language]);
@@ -427,7 +435,7 @@ function SnapCard({ row }: { row: SnapRow }) {
     } catch { toast.error(t("toast.copyErr")); }
   };
   return (
-    <li className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+    <li className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
       <div className="flex items-start justify-between gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -462,9 +470,16 @@ function SnapCard({ row }: { row: SnapRow }) {
           >
             <ExternalLink className="h-3 w-3" />
           </Link>
+          <Button
+            size="sm" variant="ghost" onClick={onDelete}
+            className="h-7 gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            title={t("snap.delete")}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
         </div>
       </div>
-      <pre className="cv-code rounded-none border-0">
+      <pre className="cv-code max-h-96 overflow-auto rounded-none border-0">
         <code className="hljs" dangerouslySetInnerHTML={{ __html: html }} />
       </pre>
     </li>
