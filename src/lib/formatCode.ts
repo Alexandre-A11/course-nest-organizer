@@ -46,44 +46,46 @@ function langToParser(language: string): string | null {
   }
 }
 
-async function pluginsForParser(parser: string): Promise<unknown[]> {
+import type { Plugin } from "prettier";
+
+async function pluginsForParser(parser: string): Promise<Plugin[]> {
   switch (parser) {
     case "babel": {
       const [babel, estree] = await Promise.all([
         import("prettier/plugins/babel"),
         import("prettier/plugins/estree"),
       ]);
-      return [babel.default, estree.default];
+      return [babel.default as Plugin, estree.default as Plugin];
     }
     case "typescript": {
       const [ts, estree] = await Promise.all([
         import("prettier/plugins/typescript"),
         import("prettier/plugins/estree"),
       ]);
-      return [ts.default, estree.default];
+      return [ts.default as Plugin, estree.default as Plugin];
     }
     case "json": {
       const [babel, estree] = await Promise.all([
         import("prettier/plugins/babel"),
         import("prettier/plugins/estree"),
       ]);
-      return [babel.default, estree.default];
+      return [babel.default as Plugin, estree.default as Plugin];
     }
     case "css": {
       const post = await import("prettier/plugins/postcss");
-      return [post.default];
+      return [post.default as Plugin];
     }
     case "html": {
       const html = await import("prettier/plugins/html");
-      return [html.default];
+      return [html.default as Plugin];
     }
     case "yaml": {
       const yaml = await import("prettier/plugins/yaml");
-      return [yaml.default];
+      return [yaml.default as Plugin];
     }
     case "markdown": {
       const md = await import("prettier/plugins/markdown");
-      return [md.default];
+      return [md.default as Plugin];
     }
     default:
       return [];
