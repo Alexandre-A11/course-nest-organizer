@@ -257,7 +257,7 @@ export async function deleteCourseBlobs(courseId: string) {
  */
 export async function resetCourseProgress(courseId: string, keepNotes = false) {
   const db = await getDB();
-  const tx = db.transaction(["files", "courses"], "readwrite");
+  const tx = db.transaction(["files", "courses", "snapshots"], "readwrite");
   const filesStore = tx.objectStore("files");
   const idx = filesStore.index("byCourse");
   let cursor = await idx.openCursor(courseId);
@@ -279,6 +279,20 @@ export async function resetCourseProgress(courseId: string, keepNotes = false) {
     await tx.objectStore("courses").put({
       ...c, lastFileId: undefined, lastAccessedAt: undefined, updatedAt: now,
     });
+  }
+  // Snapshots reset alongside notes: when keepNotes is false we tombstone every
+  // code snapshot so peers converge to the same empty state.
+  if (!keepNotes) {
+    const snapsStore = tx.objectStore("snapshots");
+    const sIdx = snapsStore.index("byCourse");
+    let sCur = await sIdx.openCursor(courseId);
+    while (sCur) {
+      const s = sCur.value as CodeSnapshot;
+      if (!s.deleted) {
+        await sCur.update({ ...s, deleted: true, updatedAt: now });
+      }
+      sCur = await sCur.continue();
+    }
   }
   await tx.done;
 }
