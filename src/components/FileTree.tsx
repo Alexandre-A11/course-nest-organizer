@@ -114,7 +114,7 @@ export function FileTree({
     );
   }
 
-  const root = buildTree(visible, customOrder);
+  const root = buildTree(visible);
   const topLevelChildren = Array.from(root.children.values());
   const topLevelIds = topLevelChildren.map((n) => n.path);
 
