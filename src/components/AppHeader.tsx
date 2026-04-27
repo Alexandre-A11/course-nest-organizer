@@ -20,7 +20,7 @@ export function AppHeader() {
   }), []);
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2.5 group">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-hero text-primary-foreground shadow-elevated transition-transform group-hover:scale-105">
             <GraduationCap className="h-5 w-5" strokeWidth={2.5} />
@@ -34,22 +34,14 @@ export function AppHeader() {
             </span>
           </div>
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
-          <Link
-            to="/"
-            className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            activeOptions={{ exact: true }}
-            activeProps={{ className: "bg-secondary text-foreground" }}
-          >
-            {t("nav.myCourses")}
-          </Link>
+        <nav className="flex items-center gap-0.5 text-sm sm:gap-1">
           <button
             type="button"
             onClick={() => setServerOpen(true)}
             title={sync.url ? t("nav.serverConnected") : t("nav.server")}
-            className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="relative rounded-lg p-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
-            <ServerCog className="h-4 w-4" />
+            <ServerCog className="h-[18px] w-[18px]" />
             {sync.url && (
               <span className="absolute -bottom-0.5 -right-0.5">
                 {sync.status === "online" && <CheckCircle2 className="h-3 w-3 text-success" />}
@@ -62,9 +54,9 @@ export function AppHeader() {
             type="button"
             onClick={() => setBackupOpen(true)}
             title={t("nav.backup")}
-            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="rounded-lg p-2.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
-            <DatabaseBackup className="h-4 w-4" />
+            <DatabaseBackup className="h-[18px] w-[18px]" />
           </button>
           <LanguageToggle />
           <ThemeToggle />
