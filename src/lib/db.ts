@@ -47,6 +47,12 @@ export interface Course {
   // you left off" feature on the home page.
   lastFileId?: string;
   lastAccessedAt?: number;
+  /**
+   * Custom user-defined ordering (drag & drop) for files and folders inside
+   * this course. Maps a relative path (file or folder) → numeric orderIndex.
+   * Items without an entry fall back to natural alphanumeric ordering.
+   */
+  customOrder?: Record<string, number>;
   /** Persisted FileTree UI state — restored when the user reopens the course. */
   expandedFolders?: string[];
   /** Folder currently focused in the tree (Show only this folder). */
@@ -333,7 +339,7 @@ export async function bulkSetWatched(fileIds: string[], watched: boolean): Promi
   return updated;
 }
 
-/** Persist a new custom drag-and-drop order map for a course. */
+/** Persist FileTree UI state for a course. */
 export async function saveCourseUiState(
   courseId: string,
   patch: Partial<Pick<Course, "expandedFolders" | "focusedFolder" | "sortMode" | "flattenFolders">>,
@@ -342,6 +348,14 @@ export async function saveCourseUiState(
   const c = await db.get("courses", courseId);
   if (!c) return;
   await db.put("courses", { ...c, ...patch, updatedAt: Date.now() });
+}
+
+/** Legacy: persist a custom drag-and-drop order map for a course. */
+export async function saveCourseCustomOrder(courseId: string, order: Record<string, number>) {
+  const db = await getDB();
+  const c = await db.get("courses", courseId);
+  if (!c) return;
+  await db.put("courses", { ...c, customOrder: order, updatedAt: Date.now() });
 }
 
 /**
