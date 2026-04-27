@@ -296,7 +296,7 @@ function Home() {
   );
 }
 
-function EmptyState({ supported, onAdded }: { supported: boolean; onAdded: () => void }) {
+function EmptyState({ onAdded }: { onAdded: () => void }) {
   const { t } = useI18n();
   return (
     <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-10 shadow-soft sm:p-16">
@@ -317,9 +317,6 @@ function EmptyState({ supported, onAdded }: { supported: boolean; onAdded: () =>
 
         <div className="mt-7">
           <AddCourseDialog onAdded={onAdded} />
-          {!supported && (
-            <p className="mt-3 text-sm text-destructive">{t("empty.unsupported")}</p>
-          )}
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-3">
