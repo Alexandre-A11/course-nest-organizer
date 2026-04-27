@@ -556,29 +556,44 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="flex-1 overflow-auto px-4 py-3 sm:px-6">
-              <RichNoteEditor
-                value={comment}
-                onChange={handleCommentChange}
-                onFocus={handleEditorFocus}
-                onBlur={handleEditorBlur}
-                placeholder={isMedia ? t("notes.placeholderMedia") : t("notes.placeholderOther")}
-                onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
-              />
-              {isMedia && tokens.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {tokens.map((t, i) => (
-                    <button
-                      key={i}
-                      onClick={() => seekTo(t.seconds)}
-                      className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary"
-                    >
-                      ▶ {t.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Tabs defaultValue="notes" className="flex flex-1 flex-col overflow-hidden">
+              <TabsList className="mx-3 mt-2 h-8 w-fit rounded-lg bg-muted/60 p-0.5">
+                <TabsTrigger value="notes" className="h-7 gap-1.5 rounded-md px-2.5 text-xs">
+                  <NotebookText className="h-3.5 w-3.5" />
+                  {t("notes.title")}
+                </TabsTrigger>
+                <TabsTrigger value="code" className="h-7 gap-1.5 rounded-md px-2.5 text-xs">
+                  <Code2 className="h-3.5 w-3.5" />
+                  {t("snap.tabTitle")}
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="notes" className="m-0 flex-1 overflow-auto px-4 py-3 sm:px-6">
+                <RichNoteEditor
+                  value={comment}
+                  onChange={handleCommentChange}
+                  onFocus={handleEditorFocus}
+                  onBlur={handleEditorBlur}
+                  placeholder={isMedia ? t("notes.placeholderMedia") : t("notes.placeholderOther")}
+                  onInsertTimestamp={isMedia ? buildTimestampSnippet : undefined}
+                />
+                {isMedia && tokens.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {tokens.map((tok, i) => (
+                      <button
+                        key={i}
+                        onClick={() => seekTo(tok.seconds)}
+                        className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:border-primary/40 hover:bg-primary-soft hover:text-primary"
+                      >
+                        ▶ {tok.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="code" className="m-0 flex-1 overflow-hidden">
+                <SnapshotsPanel fileId={file.id} courseId={file.courseId} />
+              </TabsContent>
+            </Tabs>
           </aside>
         </>
       )}
