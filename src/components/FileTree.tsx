@@ -1,20 +1,18 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import {
   ChevronRight, Folder, FolderOpen, PlayCircle, FileText, FileAudio, FileImage,
-  File as FileIcon, CheckCircle2, MessageSquare, X, GripVertical,
+  File as FileIcon, CheckCircle2, MessageSquare, X, ArrowDownAZ, ArrowUpAZ, ListChecks,
+  ChevronsDownUp, ChevronsUpDown,
 } from "lucide-react";
 import type { CourseFileMeta, FileKind } from "@/lib/db";
-import { buildTree } from "@/lib/fs";
+import { buildTree, flattenForGroupedView, type SortMode } from "@/lib/fs";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { Button } from "@/components/ui/button";
 import {
-  DndContext, PointerSensor, useSensor, useSensors,
-  closestCenter, type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 const KIND_ICON: Record<FileKind, typeof FileIcon> = {
   video: PlayCircle,
@@ -38,35 +36,39 @@ interface Props {
   files: CourseFileMeta[];
   selectedId: string | null;
   onSelect: (file: CourseFileMeta) => void;
-  /** Hide folder structure — render a flat list instead. */
+  /** Hide folder structure — render a flat, type-grouped list instead. */
   flat?: boolean;
   /** Only show files inside this folder path (and its subfolders). */
   focusFolder?: string | null;
   onSetFocusFolder?: (folder: string | null) => void;
   /** External signal to expand & scroll to a folder. */
   highlightFolder?: string | null;
-  /** Custom drag-and-drop order map keyed by item path. */
-  customOrder?: Record<string, number>;
-  /** Called whenever the user drags items into a new order. */
-  onReorder?: (next: Record<string, number>) => void;
   /** Multi-selection set (file ids). */
   selectedIds?: Set<string>;
   /** Called with click metadata so the parent can do range/toggle selection. */
   onMultiSelect?: (file: CourseFileMeta, mods: { ctrl: boolean; shift: boolean }) => void;
+  /** Sort mode (controlled). */
+  sortMode?: SortMode;
+  onSortModeChange?: (mode: SortMode) => void;
+  /** Persisted set of expanded folder paths. */
+  expandedFolders?: string[];
+  onExpandedFoldersChange?: (paths: string[]) => void;
 }
 
 export function FileTree({
   files, selectedId, onSelect, flat = false, focusFolder = null, onSetFocusFolder,
-  highlightFolder, customOrder, onReorder, selectedIds, onMultiSelect,
+  highlightFolder, selectedIds, onMultiSelect,
+  sortMode = "natural", onSortModeChange,
+  expandedFolders, onExpandedFoldersChange,
 }: Props) {
+  const { t } = useI18n();
+
   // Filter by focused folder
   const visible = useMemo(() => {
     if (!focusFolder) return files;
     const prefix = focusFolder.endsWith("/") ? focusFolder : focusFolder + "/";
     return files.filter((f) => f.path === focusFolder || f.path.startsWith(prefix));
   }, [files, focusFolder]);
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const handleClick = useCallback((file: CourseFileMeta, e: React.MouseEvent) => {
     const ctrl = e.ctrlKey || e.metaKey;
@@ -79,79 +81,127 @@ export function FileTree({
     onSelect(file);
   }, [onSelect, onMultiSelect]);
 
+  // Collect every folder path so Expand All / Collapse All can operate on them.
+  const allFolderPaths = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of visible) {
+      const parts = f.path.split("/");
+      for (let i = 1; i < parts.length; i++) set.add(parts.slice(0, i).join("/"));
+    }
+    return Array.from(set);
+  }, [visible]);
+
+  const expandedSet = useMemo(() => new Set(expandedFolders ?? []), [expandedFolders]);
+
+  const toggleFolder = (path: string) => {
+    if (!onExpandedFoldersChange) return;
+    const next = new Set(expandedSet);
+    if (next.has(path)) next.delete(path); else next.add(path);
+    onExpandedFoldersChange(Array.from(next));
+  };
+
+  const expandAll = () => onExpandedFoldersChange?.(allFolderPaths);
+  const collapseAll = () => onExpandedFoldersChange?.([]);
+
+  const sortMenu = (
+    <div className="flex items-center gap-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-xs" title={t("course.sort")}>
+            {sortMode === "reverse" ? <ArrowUpAZ className="h-3.5 w-3.5" />
+              : sortMode === "progress" ? <ListChecks className="h-3.5 w-3.5" />
+                : <ArrowDownAZ className="h-3.5 w-3.5" />}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuLabel>{t("course.sort")}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={sortMode} onValueChange={(v) => onSortModeChange?.(v as SortMode)}>
+            <DropdownMenuRadioItem value="natural"><ArrowDownAZ className="mr-2 h-3.5 w-3.5" />{t("course.sortNatural")}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="reverse"><ArrowUpAZ className="mr-2 h-3.5 w-3.5" />{t("course.sortReverse")}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="progress"><ListChecks className="mr-2 h-3.5 w-3.5" />{t("course.sortProgress")}</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+          {!flat && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={expandAll}><ChevronsUpDown className="mr-2 h-3.5 w-3.5" />{t("course.expandAll")}</DropdownMenuItem>
+              <DropdownMenuItem onClick={collapseAll}><ChevronsDownUp className="mr-2 h-3.5 w-3.5" />{t("course.collapseAll")}</DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
   if (flat) {
-    // In flat view, the whole list is a single sortable container.
-    const ids = visible.map((f) => f.id);
-    const handleDragEnd = (e: DragEndEvent) => {
-      if (!onReorder || !e.over || e.active.id === e.over.id) return;
-      const oldIdx = ids.indexOf(String(e.active.id));
-      const newIdx = ids.indexOf(String(e.over.id));
-      if (oldIdx < 0 || newIdx < 0) return;
-      const reordered = arrayMove(visible, oldIdx, newIdx);
-      const next: Record<string, number> = { ...(customOrder ?? {}) };
-      reordered.forEach((f, i) => { next[f.path] = i; });
-      onReorder(next);
-    };
+    const items = flattenForGroupedView(visible, sortMode);
+    // Render small section labels when the kind changes.
+    let lastKind: FileKind | null = null;
     return (
       <div className="space-y-0.5">
+        <div className="mb-1 flex items-center justify-end">{sortMenu}</div>
         {focusFolder && (
           <FocusBanner folder={focusFolder} onClear={() => onSetFocusFolder?.(null)} />
         )}
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            {visible.map((file) => (
-              <SortableFlatItem
-                key={file.id}
+        {items.map((file) => {
+          const showHeader = file.kind !== lastKind;
+          lastKind = file.kind;
+          return (
+            <div key={file.id}>
+              {showHeader && (
+                <div className="mt-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {kindLabel(file.kind, t)}
+                </div>
+              )}
+              <FlatItem
                 file={file}
                 selectedId={selectedId}
                 onClick={handleClick}
                 isMultiSelected={selectedIds?.has(file.id) ?? false}
               />
-            ))}
-          </SortableContext>
-        </DndContext>
+            </div>
+          );
+        })}
       </div>
     );
   }
 
-  const root = buildTree(visible);
+  const root = buildTree(visible, sortMode);
   const topLevelChildren = Array.from(root.children.values());
-  const topLevelIds = topLevelChildren.map((n) => n.path);
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    if (!onReorder || !e.over || e.active.id === e.over.id) return;
-    const oldIdx = topLevelIds.indexOf(String(e.active.id));
-    const newIdx = topLevelIds.indexOf(String(e.over.id));
-    if (oldIdx < 0 || newIdx < 0) return;
-    const reordered = arrayMove(topLevelChildren, oldIdx, newIdx);
-    const next: Record<string, number> = { ...(customOrder ?? {}) };
-    reordered.forEach((n, i) => { next[n.path] = i; });
-    onReorder(next);
-  };
 
   return (
     <div className="space-y-0.5">
+      <div className="mb-1 flex items-center justify-end">{sortMenu}</div>
       {focusFolder && (
         <FocusBanner folder={focusFolder} onClear={() => onSetFocusFolder?.(null)} />
       )}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={topLevelIds} strategy={verticalListSortingStrategy}>
-          {topLevelChildren.map((node) => (
-            <SortableTreeNode
-              key={node.path}
-              node={node}
-              depth={0}
-              selectedId={selectedId}
-              onClick={handleClick}
-              onFocusFolder={onSetFocusFolder}
-              highlightFolder={highlightFolder ?? null}
-              selectedIds={selectedIds}
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
+      {topLevelChildren.map((node) => (
+        <TreeNode
+          key={node.path}
+          node={node}
+          depth={0}
+          selectedId={selectedId}
+          onClick={handleClick}
+          onFocusFolder={onSetFocusFolder}
+          highlightFolder={highlightFolder ?? null}
+          selectedIds={selectedIds}
+          expandedSet={expandedSet}
+          onToggleFolder={toggleFolder}
+          defaultOpen={true}
+        />
+      ))}
     </div>
   );
+}
+
+function kindLabel(kind: FileKind, t: (k: string) => string) {
+  switch (kind) {
+    case "video": return t("course.filterVideos");
+    case "pdf": return t("course.filterPdfs");
+    case "audio": return "Audio";
+    case "doc": return "Docs";
+    case "image": return "Images";
+    default: return "Other";
+  }
 }
 
 function FocusBanner({ folder, onClear }: { folder: string; onClear: () => void }) {
@@ -168,7 +218,7 @@ function FocusBanner({ folder, onClear }: { folder: string; onClear: () => void 
   );
 }
 
-function SortableFlatItem({
+function FlatItem({
   file, selectedId, onClick, isMultiSelected,
 }: {
   file: CourseFileMeta;
@@ -176,15 +226,11 @@ function SortableFlatItem({
   onClick: (f: CourseFileMeta, e: React.MouseEvent) => void;
   isMultiSelected: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: file.id });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
   const Icon = KIND_ICON[file.kind];
   const isActive = file.id === selectedId;
   const folder = file.path.includes("/") ? file.path.split("/").slice(0, -1).join("/") : "";
   return (
     <div
-      ref={setNodeRef}
-      style={style}
       onClick={(e) => onClick(file, e)}
       className={cn(
         "group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors",
@@ -195,15 +241,6 @@ function SortableFlatItem({
             : "text-muted-foreground hover:bg-secondary hover:text-foreground",
       )}
     >
-      <span
-        {...attributes}
-        {...listeners}
-        onClick={(e) => e.stopPropagation()}
-        className="cursor-grab text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-        title="Drag to reorder"
-      >
-        <GripVertical className="h-3.5 w-3.5" />
-      </span>
       <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : KIND_COLOR[file.kind])} />
       <span className="min-w-0 flex-1">
         <span className={cn("block truncate", file.watched && !isActive && "line-through opacity-60", isActive && "font-medium text-foreground")}>
@@ -223,35 +260,9 @@ function SortableFlatItem({
 
 type Node = ReturnType<typeof buildTree>;
 
-function SortableTreeNode(props: {
-  node: Node;
-  depth: number;
-  selectedId: string | null;
-  onClick: (f: CourseFileMeta, e: React.MouseEvent) => void;
-  onFocusFolder?: (folder: string | null) => void;
-  highlightFolder: string | null;
-  selectedIds?: Set<string>;
-}) {
-  // Only the top level uses sortable wrapping (depth === 0). Nested nodes
-  // render the existing TreeNode directly (folder hierarchy is preserved as
-  // a logical structure; reordering happens at the level the user drags).
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: props.node.path,
-  });
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
-  return (
-    <div ref={setNodeRef} style={style}>
-      <TreeNode
-        {...props}
-        dragHandleProps={{ ...attributes, ...listeners }}
-      />
-    </div>
-  );
-}
-
 function TreeNode({
   node, depth, selectedId, onClick, onFocusFolder, highlightFolder, selectedIds,
-  dragHandleProps,
+  expandedSet, onToggleFolder, defaultOpen,
 }: {
   node: Node;
   depth: number;
@@ -260,19 +271,30 @@ function TreeNode({
   onFocusFolder?: (folder: string | null) => void;
   highlightFolder: string | null;
   selectedIds?: Set<string>;
-  dragHandleProps?: Record<string, unknown>;
+  expandedSet: Set<string>;
+  onToggleFolder: (path: string) => void;
+  defaultOpen: boolean;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(depth < 1);
   const isFolder = !node.file;
 
-  // Auto-expand & flash if highlighted folder is this one or a descendant
-  const isHighlighted = highlightFolder === node.path;
-  const containsHighlight = isFolder && highlightFolder ? (highlightFolder === node.path || highlightFolder.startsWith(node.path + "/")) : false;
+  // Folder open state: persisted set wins; otherwise default for top level.
+  const open = isFolder
+    ? (expandedSet.has(node.path) || (depth < 1 && defaultOpen && expandedSet.size === 0))
+    : false;
 
+  const isHighlighted = highlightFolder === node.path;
+  const containsHighlight = isFolder && highlightFolder
+    ? (highlightFolder === node.path || highlightFolder.startsWith(node.path + "/"))
+    : false;
+
+  // If a folder needs to be highlighted from outside, ensure it's expanded.
   useEffect(() => {
-    if (containsHighlight && !open) setOpen(true);
-  }, [containsHighlight]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (containsHighlight && !expandedSet.has(node.path)) {
+      onToggleFolder(node.path);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containsHighlight]);
 
   if (isFolder) {
     return (
@@ -284,18 +306,8 @@ function TreeNode({
           )}
           style={{ paddingLeft: `${depth * 12 + 4}px` }}
         >
-          {dragHandleProps && (
-            <span
-              {...dragHandleProps}
-              onClick={(e) => e.stopPropagation()}
-              className="cursor-grab text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-              title="Drag to reorder"
-            >
-              <GripVertical className="h-3 w-3" />
-            </span>
-          )}
           <button
-            onClick={() => setOpen(!open)}
+            onClick={() => onToggleFolder(node.path)}
             className="flex flex-1 items-center gap-1.5 px-1 py-1.5 text-left text-sm font-medium text-foreground"
           >
             <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
@@ -324,6 +336,9 @@ function TreeNode({
                 onFocusFolder={onFocusFolder}
                 highlightFolder={highlightFolder}
                 selectedIds={selectedIds}
+                expandedSet={expandedSet}
+                onToggleFolder={onToggleFolder}
+                defaultOpen={defaultOpen}
               />
             ))}
           </div>
@@ -350,16 +365,6 @@ function TreeNode({
       )}
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >
-      {dragHandleProps && (
-        <span
-          {...dragHandleProps}
-          onClick={(e) => e.stopPropagation()}
-          className="cursor-grab text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-          title="Drag to reorder"
-        >
-          <GripVertical className="h-3 w-3" />
-        </span>
-      )}
       <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : KIND_COLOR[file.kind])} />
       <span className={cn("flex-1 truncate", file.watched && !isActive && "line-through opacity-60", isActive && "font-medium")}>
         {file.name}

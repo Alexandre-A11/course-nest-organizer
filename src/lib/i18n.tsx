@@ -103,6 +103,12 @@ const PT: Dict = {
   "course.bulkClear": "Limpar seleção",
   "course.bulkHint": "Segure Ctrl (⌘) ou Shift para selecionar vários arquivos.",
   "toast.bulkUpdated": "{n} arquivo{plural} atualizado{plural}",
+  "course.sort": "Ordenar",
+  "course.sortNatural": "Natural (A→Z)",
+  "course.sortReverse": "Inversa (Z→A)",
+  "course.sortProgress": "Por progresso",
+  "course.expandAll": "Expandir tudo",
+  "course.collapseAll": "Recolher tudo",
 
   // Add/Edit dialog
   "add.title": "Novo curso",
@@ -395,6 +401,12 @@ const EN: Dict = {
   "course.bulkClear": "Clear selection",
   "course.bulkHint": "Hold Ctrl (⌘) or Shift to select multiple files.",
   "toast.bulkUpdated": "{n} file{plural} updated",
+  "course.sort": "Sort",
+  "course.sortNatural": "Natural (A→Z)",
+  "course.sortReverse": "Reverse (Z→A)",
+  "course.sortProgress": "By progress",
+  "course.expandAll": "Expand all",
+  "course.collapseAll": "Collapse all",
 
   "add.title": "New course",
   "add.subtitle": "Pick the course folder. Everything stays on your device.",

@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   getCourse, listFiles, upsertFiles, touchCourseLastFile, bulkSetWatched,
-  saveCourseCustomOrder, type Course, type CourseFileMeta, type FileKind,
+  saveCourseUiState, type Course, type CourseFileMeta, type FileKind,
 } from "@/lib/db";
 import { ensurePermission, scanDirectory, scanFileList, mergeScanWithMeta, getKind } from "@/lib/fs";
+import type { SortMode } from "@/lib/fs";
 import { setCourseFiles, hasCourseFiles } from "@/lib/sessionFiles";
 import { ArrowLeft, Search, RefreshCw, Loader2, AlertTriangle, FolderOpen, FolderTree, ListTree, X, Pencil, CheckCircle2, Circle } from "lucide-react";
 import { toast } from "sonner";
 import { Toggle } from "@/components/ui/toggle";
-import { usePref } from "@/lib/prefs";
 import { EditCourseDialog } from "@/components/EditCourseDialog";
 import { getCategory } from "@/lib/categories";
 import { useI18n } from "@/lib/i18n";
@@ -42,8 +42,11 @@ function CoursePage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unwatched" | FileKind>("all");
   const [rescanning, setRescanning] = useState(false);
-  const [flatView, setFlatView] = usePref<"on" | "off">("course.flatView", "off");
-  const [focusFolder, setFocusFolder] = useState<string | null>(null);
+  // Persisted FileTree UI state, hydrated from the course record.
+  const [flatView, setFlatViewState] = useState<"on" | "off">("off");
+  const [focusFolder, setFocusFolderState] = useState<string | null>(null);
+  const [sortMode, setSortModeState] = useState<SortMode>("natural");
+  const [expandedFolders, setExpandedFoldersState] = useState<string[]>([]);
   const [highlightFolder, setHighlightFolder] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
@@ -58,6 +61,11 @@ function CoursePage() {
         return;
       }
       setCourse(c);
+      // Hydrate persisted FileTree UI state.
+      setFlatViewState(c.flattenFolders ? "on" : "off");
+      setFocusFolderState(c.focusedFolder ?? null);
+      setSortModeState(c.sortMode ?? "natural");
+      setExpandedFoldersState(c.expandedFolders ?? []);
       if (c.source === "remote") {
         // Remote courses stream over HTTP — no local permission needed.
       } else if (c.source === "cached") {
@@ -214,10 +222,22 @@ function CoursePage() {
     setMultiSelected(new Set());
   };
 
-  const handleReorder = async (order: Record<string, number>) => {
-    if (!course) return;
-    setCourse({ ...course, customOrder: order });
-    await saveCourseCustomOrder(course.id, order);
+  // Persisted UI-state setters — wrap setState + saveCourseUiState.
+  const setFlatView = (v: "on" | "off") => {
+    setFlatViewState(v);
+    void saveCourseUiState(courseId, { flattenFolders: v === "on" });
+  };
+  const setFocusFolder = (v: string | null) => {
+    setFocusFolderState(v);
+    void saveCourseUiState(courseId, { focusedFolder: v });
+  };
+  const setSortMode = (v: SortMode) => {
+    setSortModeState(v);
+    void saveCourseUiState(courseId, { sortMode: v });
+  };
+  const setExpandedFolders = (v: string[]) => {
+    setExpandedFoldersState(v);
+    void saveCourseUiState(courseId, { expandedFolders: v });
   };
 
   // Persist last-opened file whenever the user picks one.
@@ -444,10 +464,12 @@ function CoursePage() {
                 focusFolder={focusFolder}
                 onSetFocusFolder={setFocusFolder}
                 highlightFolder={highlightFolder}
-                customOrder={course?.customOrder}
-                onReorder={handleReorder}
                 selectedIds={multiSelected}
                 onMultiSelect={handleMultiSelect}
+                sortMode={sortMode}
+                onSortModeChange={setSortMode}
+                expandedFolders={expandedFolders}
+                onExpandedFoldersChange={setExpandedFolders}
               />
             )}
           </div>
