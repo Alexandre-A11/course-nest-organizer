@@ -6,14 +6,15 @@ import {
 import { SUPPORTED_LANGUAGES, highlightCode, languageLabel } from "@/lib/highlight";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Check, X, Copy, Code2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Copy, Code2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { LiveCodeEditor } from "@/components/notes/LiveCodeEditor";
+import { formatCode } from "@/lib/formatCode";
 
 interface Props {
   fileId: string;
@@ -106,6 +107,24 @@ export function SnapshotsPanel({ fileId, courseId }: Props) {
     }
   };
 
+  const handleFormatDraft = async () => {
+    if (!draftCode.trim()) return;
+    try {
+      const next = await formatCode(draftCode, draftLang);
+      setDraftCode(next);
+      toast.success(t("snap.formatted"));
+    } catch { toast.error(t("snap.formatErr")); }
+  };
+
+  const handleFormatEdit = async () => {
+    if (!editCode.trim()) return;
+    try {
+      const next = await formatCode(editCode, editLang);
+      setEditCode(next);
+      toast.success(t("snap.formatted"));
+    } catch { toast.error(t("snap.formatErr")); }
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
@@ -132,13 +151,22 @@ export function SnapshotsPanel({ fileId, courseId }: Props) {
               className="h-8 flex-1 rounded-lg text-sm"
             />
             <LanguagePicker value={draftLang} onChange={setDraftLang} />
+            <Button
+              size="sm" variant="ghost" onClick={handleFormatDraft}
+              className="h-8 gap-1 rounded-lg px-2 text-xs"
+              title={t("snap.format")}
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              {t("snap.format")}
+            </Button>
           </div>
-          <Textarea
+          <LiveCodeEditor
             value={draftCode}
-            onChange={(e) => setDraftCode(e.target.value)}
+            language={draftLang}
+            onChange={setDraftCode}
             placeholder={t("snap.codePh")}
-            className="min-h-[140px] rounded-lg font-mono text-xs leading-relaxed"
-            spellCheck={false}
+            minHeight={160}
+            maxHeight={360}
           />
           <div className="flex items-center justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={resetComposer} className="h-7 rounded-lg text-xs">
@@ -175,12 +203,21 @@ export function SnapshotsPanel({ fileId, courseId }: Props) {
                         className="h-8 flex-1 rounded-lg text-sm"
                       />
                       <LanguagePicker value={editLang} onChange={setEditLang} />
+                      <Button
+                        size="sm" variant="ghost" onClick={handleFormatEdit}
+                        className="h-8 gap-1 rounded-lg px-2 text-xs"
+                        title={t("snap.format")}
+                      >
+                        <Wand2 className="h-3.5 w-3.5" />
+                        {t("snap.format")}
+                      </Button>
                     </div>
-                    <Textarea
+                    <LiveCodeEditor
                       value={editCode}
-                      onChange={(e) => setEditCode(e.target.value)}
-                      className="min-h-[140px] rounded-lg font-mono text-xs leading-relaxed"
-                      spellCheck={false}
+                      language={editLang}
+                      onChange={setEditCode}
+                      minHeight={160}
+                      maxHeight={360}
                     />
                     <div className="flex items-center justify-end gap-2">
                       <Button size="sm" variant="ghost" onClick={cancelEdit} className="h-7 gap-1 rounded-lg text-xs">
