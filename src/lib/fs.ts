@@ -1,4 +1,5 @@
 import type { CourseFileMeta, FileKind } from "./db";
+import { getFileBlob } from "./db";
 
 const VIDEO_EXT = ["mp4", "mkv", "webm", "mov", "m4v", "avi"];
 const AUDIO_EXT = ["mp3", "m4a", "wav", "ogg", "flac"];
@@ -20,6 +21,88 @@ export interface ScannedFile {
   name: string;
   size: number;
   kind: FileKind;
+}
+
+export async function scanDirectory(
+  handle: FileSystemDirectoryHandle,
+  prefix = "",
+): Promise<ScannedFile[]> {
+  const out: ScannedFile[] = [];
+  const iter = (handle as unknown as { values: () => AsyncIterable<FileSystemHandle> }).values();
+  for await (const entry of iter) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.kind === "directory") {
+      const sub = await scanDirectory(entry as FileSystemDirectoryHandle, path);
+      out.push(...sub);
+    } else {
+      try {
+        const file = await (entry as FileSystemFileHandle).getFile();
+        out.push({ path, name: entry.name, size: file.size, kind: getKind(entry.name) });
+      } catch { /* skip */ }
+    }
+  }
+  return out.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
+}
+
+export async function getFileFromCourse(
+  rootHandle: FileSystemDirectoryHandle | undefined,
+  relPath: string,
+  memoryFiles?: Map<string, File>,
+  cachedFileId?: string,
+): Promise<File> {
+  if (cachedFileId) {
+    const blob = await getFileBlob(cachedFileId);
+    if (!blob) throw new Error("Arquivo em cache não encontrado");
+    const name = relPath.split("/").pop() ?? "file";
+    return new File([blob], name, { type: blob.type });
+  }
+  if (memoryFiles) {
+    const f = memoryFiles.get(relPath);
+    if (!f) throw new Error("Arquivo não disponível na sessão atual");
+    return f;
+  }
+  if (!rootHandle) throw new Error("Pasta do curso não está acessível");
+  const parts = relPath.split("/");
+  let dir: FileSystemDirectoryHandle = rootHandle;
+  for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i]);
+  const fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
+  return fileHandle.getFile();
+}
+
+export async function ensurePermission(
+  handle: FileSystemDirectoryHandle,
+  mode: "read" | "readwrite" = "read",
+): Promise<boolean> {
+  const h = handle as unknown as {
+    queryPermission: (o: { mode: string }) => Promise<PermissionState>;
+    requestPermission: (o: { mode: string }) => Promise<PermissionState>;
+  };
+  const opts = { mode };
+  const current = await h.queryPermission(opts);
+  if (current === "granted") return true;
+  const req = await h.requestPermission(opts);
+  return req === "granted";
+}
+
+export function isFsAccessSupported(): boolean {
+  return typeof window !== "undefined" && "showDirectoryPicker" in window;
+}
+
+export function scanFileList(fileList: FileList | File[]): { files: ScannedFile[]; rootName: string; fileMap: Map<string, File> } {
+  const arr = Array.from(fileList);
+  const fileMap = new Map<string, File>();
+  let rootName = "";
+  const files: ScannedFile[] = [];
+  for (const f of arr) {
+    const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    const parts = rel.split("/");
+    if (!rootName && parts.length > 1) rootName = parts[0];
+    const path = parts.length > 1 ? parts.slice(1).join("/") : f.name;
+    fileMap.set(path, f);
+    files.push({ path, name: f.name, size: f.size, kind: getKind(f.name) });
+  }
+  files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
+  return { files, rootName: rootName || "Curso", fileMap };
 }
 
 export function mergeScanWithMeta(
