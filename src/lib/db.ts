@@ -18,6 +18,27 @@ export interface CourseFileMeta {
   updatedAt?: number;
 }
 
+/**
+ * A code snapshot belonging to a specific lesson file. Each video/document can
+ * accumulate its own history of code blocks captured while studying. Snapshots
+ * are synced via the standard last-write-wins layer and surfaced both in the
+ * file viewer (Code tab) and in the global /notes dashboard.
+ */
+export interface CodeSnapshot {
+  id: string;             // ulid-ish: `${fileId}:${createdAt}:${rand}`
+  fileId: string;         // CourseFileMeta.id
+  courseId: string;
+  /** Highlight.js language name — js, ts, tsx, python, java, rust, dockerfile… */
+  language: string;
+  code: string;
+  /** Optional short label ("Component skeleton", "Final hook"). */
+  title?: string;
+  createdAt: number;
+  updatedAt?: number;
+  /** Tombstone flag — soft-deleted snapshots are kept for sync propagation. */
+  deleted?: boolean;
+}
+
 export interface Course {
   id: string;
   name: string;
@@ -80,6 +101,11 @@ interface Schema extends DBSchema {
     value: { id: string; courseId: string; blob: Blob };
     indexes: { byCourse: string };
   };
+  snapshots: {
+    key: string;
+    value: CodeSnapshot;
+    indexes: { byFile: string; byCourse: string };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<Schema>> | null = null;
@@ -89,7 +115,7 @@ export function getDB() {
     return Promise.reject(new Error("DB only available in the browser"));
   }
   if (!dbPromise) {
-    dbPromise = openDB<Schema>("course-vault", 2, {
+    dbPromise = openDB<Schema>("course-vault", 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           db.createObjectStore("courses", { keyPath: "id" });
@@ -99,6 +125,11 @@ export function getDB() {
         if (oldVersion < 2) {
           const blobs = db.createObjectStore("fileBlobs", { keyPath: "id" });
           blobs.createIndex("byCourse", "courseId");
+        }
+        if (oldVersion < 3) {
+          const snaps = db.createObjectStore("snapshots", { keyPath: "id" });
+          snaps.createIndex("byFile", "fileId");
+          snaps.createIndex("byCourse", "courseId");
         }
       },
     });
@@ -373,6 +404,94 @@ export async function purgeLegacyLocalCourses(): Promise<string[]> {
     await deleteCourse(c.id); // already wipes files + blobs + tombstone
   }
   return toDelete.map((c) => c.name);
+}
+
+// ---- Code snapshots ----
+
+function genSnapshotId(fileId: string): string {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${fileId}::${Date.now()}::${rand}`;
+}
+
+/** Create a new snapshot for a lesson file. */
+export async function createSnapshot(input: {
+  fileId: string;
+  courseId: string;
+  language: string;
+  code: string;
+  title?: string;
+}): Promise<CodeSnapshot> {
+  const db = await getDB();
+  const now = Date.now();
+  const snap: CodeSnapshot = {
+    id: genSnapshotId(input.fileId),
+    fileId: input.fileId,
+    courseId: input.courseId,
+    language: input.language,
+    code: input.code,
+    title: input.title?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.put("snapshots", snap);
+  return snap;
+}
+
+/** Update the language/code/title of an existing snapshot. */
+export async function updateSnapshot(
+  id: string,
+  patch: Partial<Pick<CodeSnapshot, "language" | "code" | "title">>,
+): Promise<CodeSnapshot | undefined> {
+  const db = await getDB();
+  const cur = await db.get("snapshots", id);
+  if (!cur) return undefined;
+  const next: CodeSnapshot = { ...cur, ...patch, updatedAt: Date.now() };
+  await db.put("snapshots", next);
+  return next;
+}
+
+/** Soft-delete: keep the row with `deleted: true` so peers can converge. */
+export async function deleteSnapshot(id: string): Promise<void> {
+  const db = await getDB();
+  const cur = await db.get("snapshots", id);
+  if (!cur) return;
+  await db.put("snapshots", { ...cur, deleted: true, updatedAt: Date.now() });
+}
+
+/** Snapshots for a given file (newest first), excluding tombstones. */
+export async function listSnapshotsForFile(fileId: string): Promise<CodeSnapshot[]> {
+  const db = await getDB();
+  const all = await db.getAllFromIndex("snapshots", "byFile", fileId);
+  return all.filter((s) => !s.deleted).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** Every snapshot in the library (used by /notes dashboard). */
+export async function listAllSnapshots(): Promise<CodeSnapshot[]> {
+  const db = await getDB();
+  const all = await db.getAll("snapshots");
+  return all.filter((s) => !s.deleted);
+}
+
+/** Bulk-upsert from sync (last-write-wins on updatedAt). */
+export async function syncUpsertSnapshots(snaps: CodeSnapshot[]): Promise<void> {
+  if (!snaps.length) return;
+  const db = await getDB();
+  const tx = db.transaction("snapshots", "readwrite");
+  for (const remote of snaps) {
+    if (!remote?.id) continue;
+    const local = (await tx.store.get(remote.id)) as CodeSnapshot | undefined;
+    const localTs = local?.updatedAt ?? local?.createdAt ?? 0;
+    const remoteTs = remote.updatedAt ?? remote.createdAt ?? 0;
+    if (!local || remoteTs > localTs) await tx.store.put(remote);
+  }
+  await tx.done;
+}
+
+/** Snapshots changed since `since` ms — used by the sync push. */
+export async function collectChangedSnapshots(since: number): Promise<CodeSnapshot[]> {
+  const db = await getDB();
+  const all = await db.getAll("snapshots");
+  return all.filter((s) => (s.updatedAt ?? s.createdAt ?? 0) > since);
 }
 
 // ---- Library export / import (JSON) ----

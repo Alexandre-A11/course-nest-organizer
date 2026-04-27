@@ -474,3 +474,66 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* ============================================================
+ * Code snapshots (highlight.js) — theme-aware syntax colors
+ * Built on top of design tokens so it works across every theme.
+ * ============================================================ */
+.cv-code {
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", "SF Mono",
+    Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  background: color-mix(in oklab, var(--color-card) 92%, var(--color-foreground) 4%);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  overflow: auto;
+  white-space: pre;
+  tab-size: 2;
+}
+.cv-code .hljs-comment,
+.cv-code .hljs-quote { color: color-mix(in oklab, var(--color-muted-foreground) 90%, transparent); font-style: italic; }
+.cv-code .hljs-keyword,
+.cv-code .hljs-selector-tag,
+.cv-code .hljs-literal,
+.cv-code .hljs-section,
+.cv-code .hljs-link { color: oklch(0.62 0.21 290); }
+.cv-code .hljs-string,
+.cv-code .hljs-attr,
+.cv-code .hljs-template-tag,
+.cv-code .hljs-template-variable,
+.cv-code .hljs-symbol,
+.cv-code .hljs-bullet { color: oklch(0.62 0.16 152); }
+.cv-code .hljs-number,
+.cv-code .hljs-regexp,
+.cv-code .hljs-meta { color: oklch(0.65 0.18 30); }
+.cv-code .hljs-built_in,
+.cv-code .hljs-builtin-name,
+.cv-code .hljs-class .hljs-title,
+.cv-code .hljs-title.class_,
+.cv-code .hljs-title.function_,
+.cv-code .hljs-name { color: oklch(0.65 0.16 220); font-weight: 600; }
+.cv-code .hljs-attribute,
+.cv-code .hljs-variable,
+.cv-code .hljs-tag { color: oklch(0.6 0.18 24); }
+.cv-code .hljs-params,
+.cv-code .hljs-selector-attr,
+.cv-code .hljs-selector-pseudo { color: oklch(0.55 0.13 250); }
+.cv-code .hljs-doctag,
+.cv-code .hljs-deletion { color: oklch(0.6 0.22 27); }
+.cv-code .hljs-addition { color: oklch(0.6 0.18 152); }
+.cv-code .hljs-emphasis { font-style: italic; }
+.cv-code .hljs-strong { font-weight: 700; }
+
+/* Inline code chips inside snapshot titles or note previews */
+.cv-inline-code {
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85em;
+  background: var(--color-muted);
+  color: var(--color-foreground);
+  padding: 0.1em 0.4em;
+  border-radius: 0.35rem;
+  border: 1px solid var(--color-border);
+}

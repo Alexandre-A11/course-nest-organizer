@@ -22,7 +22,7 @@ import { readdir, stat } from "node:fs/promises";
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = process.env.DATA_DIR || path.resolve("./data");
 const COURSES_DIR = process.env.COURSES_DIR || path.resolve("./courses");
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(COURSES_DIR, { recursive: true });
@@ -55,6 +55,17 @@ db.exec(`
     id TEXT PRIMARY KEY,
     deleted_at INTEGER NOT NULL
   );
+  -- Per-lesson code snapshots (one row per snapshot — soft-deleted via
+  -- the JSON `deleted` flag inside `data`).
+  CREATE TABLE IF NOT EXISTS snapshots (
+    id TEXT PRIMARY KEY,
+    file_id TEXT NOT NULL,
+    course_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_snapshots_file ON snapshots(file_id);
+  CREATE INDEX IF NOT EXISTS idx_snapshots_course ON snapshots(course_id);
 `);
 
 const getCoursesStmt = db.prepare("SELECT id, data, updated_at FROM courses");
@@ -83,6 +94,13 @@ const upsertTombstoneStmt = db.prepare(
 );
 const getTombstonesStmt = db.prepare("SELECT id, deleted_at FROM deleted_courses");
 const getTombstoneStmt = db.prepare("SELECT deleted_at FROM deleted_courses WHERE id = ?");
+const getSnapshotsStmt = db.prepare("SELECT id, data, updated_at FROM snapshots");
+const upsertSnapshotStmt = db.prepare(
+  "INSERT INTO snapshots(id, file_id, course_id, data, updated_at) VALUES(?, ?, ?, ?, ?) " +
+  "ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at " +
+  "WHERE excluded.updated_at >= snapshots.updated_at"
+);
+const deleteSnapshotsByCourseStmt = db.prepare("DELETE FROM snapshots WHERE course_id = ?");
 
 function snapshot() {
   const courses = getCoursesStmt.all().map((r) => {
@@ -98,6 +116,10 @@ function snapshot() {
   const tombstones = getTombstonesStmt.all().map((r) => ({
     id: r.id, deletedAt: r.deleted_at,
   }));
+  const snapshots = getSnapshotsStmt.all().map((r) => {
+    const s = JSON.parse(r.data);
+    return { ...s, _updatedAt: r.updated_at };
+  });
   return {
     version: 1,
     serverTime: Date.now(),
@@ -106,6 +128,7 @@ function snapshot() {
     customCategories: cats ? JSON.parse(cats.value) : [],
     removedBuiltins: removed ? JSON.parse(removed.value) : [],
     deletedCourses: tombstones,
+    snapshots,
   };
 }
 
@@ -158,6 +181,7 @@ app.post("/sync", (req, res) => {
       upsertTombstoneStmt.run(t.id, t.deletedAt);
       deleteCourseStmt.run(t.id);
       deleteFilesByCourseStmt.run(t.id);
+      deleteSnapshotsByCourseStmt.run(t.id);
     }
 
     for (const c of body.courses || []) {
@@ -180,6 +204,15 @@ app.post("/sync", (req, res) => {
       const { _updatedAt, ...clean } = f;
       void _updatedAt;
       upsertFileStmt.run(f.id, f.courseId, JSON.stringify(clean), ts);
+    }
+    for (const s of body.snapshots || []) {
+      if (!s?.id || !s?.fileId || !s?.courseId) continue;
+      const ts = Number(s._updatedAt) || now;
+      const tomb = getTombstoneStmt.get(s.courseId);
+      if (tomb) continue;
+      const { _updatedAt, ...clean } = s;
+      void _updatedAt;
+      upsertSnapshotStmt.run(s.id, s.fileId, s.courseId, JSON.stringify(clean), ts);
     }
     if (Array.isArray(body.customCategories)) {
       upsertKvStmt.run("categories", JSON.stringify(body.customCategories), now);

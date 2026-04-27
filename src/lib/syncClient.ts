@@ -12,6 +12,7 @@ import {
   getDB, type Course, type CourseFileMeta,
   getDeletedCourseEntries, getDeletedCourseIds, clearDeletedCourses,
   rememberDeletedCourse,
+  type CodeSnapshot, collectChangedSnapshots, syncUpsertSnapshots,
 } from "@/lib/db";
 import {
   getCustomCategoriesRaw, getRemovedBuiltinIds, importCategoryState,
@@ -178,7 +179,11 @@ async function collectLocalChanges(since: number) {
   const fileChanges = files
     .filter((f) => (f.updatedAt ?? 0) > since)
     .map((f) => ({ ...f, _updatedAt: f.updatedAt ?? Date.now() }));
-  return { courseChanges, fileChanges };
+  const snapshotChanges = (await collectChangedSnapshots(since)).map((s) => ({
+    ...s,
+    _updatedAt: s.updatedAt ?? s.createdAt ?? Date.now(),
+  }));
+  return { courseChanges, fileChanges, snapshotChanges };
 }
 
 interface ServerSnapshot {
@@ -190,6 +195,8 @@ interface ServerSnapshot {
   removedBuiltins?: string[];
   /** Authoritative list of course ids the server has marked as deleted. */
   deletedCourses?: Array<{ id: string; deletedAt: number }>;
+  /** Code snapshots (per-lesson) — added in v1.1 servers. */
+  snapshots?: Array<CodeSnapshot & { _updatedAt: number }>;
 }
 
 async function applyRemoteSnapshot(snap: ServerSnapshot) {
@@ -250,6 +257,15 @@ async function applyRemoteSnapshot(snap: ServerSnapshot) {
   }
   await tx.done;
 
+  // Snapshots — separate transaction (own store).
+  if (Array.isArray(snap.snapshots) && snap.snapshots.length > 0) {
+    const incoming = snap.snapshots
+      // Drop snapshots whose course was just tombstoned.
+      .filter((s) => !tombstoneIds.has(s.courseId))
+      .map(({ _updatedAt, ...rest }) => ({ ...rest, updatedAt: _updatedAt }));
+    await syncUpsertSnapshots(incoming);
+  }
+
   // Categories: server is authoritative when newer (we can't easily compare
   // here, so just trust the server snapshot if it contains the keys).
   if (snap.customCategories || snap.removedBuiltins) {
@@ -268,12 +284,13 @@ export async function syncOnce(): Promise<void> {
     status = "syncing"; notify();
     try {
       const since = lastSyncAt ?? Number(window.localStorage.getItem(LAST_SYNC_KEY) ?? "0");
-      const { courseChanges, fileChanges } = await collectLocalChanges(since);
+      const { courseChanges, fileChanges, snapshotChanges } = await collectLocalChanges(since);
       const deletedCourseEntries = getDeletedCourseEntries();
       const body = {
         clientTime: Date.now(),
         courses: courseChanges,
         files: fileChanges,
+        snapshots: snapshotChanges,
         // Send objects with deletedAt timestamps so the server can apply
         // last-write-wins; keep the legacy id-only field for older servers.
         deletedCourses: deletedCourseEntries,
