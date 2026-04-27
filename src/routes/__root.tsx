@@ -1,9 +1,11 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { I18nProvider } from "@/lib/i18n";
+import { purgeLegacyLocalCourses } from "@/lib/db";
 
 function NotFoundComponent() {
   return (
@@ -73,6 +75,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  useEffect(() => {
+    // One-shot: drop any legacy "handle"/"memory"/"cached" local courses
+    // left from before the 100% remote migration.
+    void purgeLegacyLocalCourses().catch(() => { /* ignore */ });
+  }, []);
   return (
     <ThemeProvider>
       <I18nProvider>
