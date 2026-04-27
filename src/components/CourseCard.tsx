@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play } from "lucide-react";
+import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play, Star } from "lucide-react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -13,10 +13,11 @@ interface Props {
   files: CourseFileMeta[];
   onDelete: () => void;
   onEdit?: () => void;
+  onToggleFavorite?: () => void;
   view?: CourseViewMode;
 }
 
-export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: Props) {
+export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, view = "grid" }: Props) {
   const { t, lang } = useI18n();
   const videos = files.filter((f) => f.kind === "video");
   const pdfs = files.filter((f) => f.kind === "pdf");
@@ -25,6 +26,13 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
   const category = getCategory(course.category);
   const CatIcon = category?.icon;
   const hasContinue = !!course.lastFileId && files.some((f) => f.id === course.lastFileId);
+  const isFav = !!course.favorite;
+  const favTitle = isFav ? t("home.favoriteRemove") : t("home.favoriteAdd");
+  const handleFavClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onToggleFavorite?.();
+  };
 
   if (view === "list") {
     return (
@@ -49,6 +57,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            <FavStar isFav={isFav} title={favTitle} onClick={handleFavClick} />
             {category && (
               <span title={category.name} className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted", category.color)}>
                 <category.icon className="h-3 w-3" />
@@ -103,6 +112,7 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1">
+              <FavStar isFav={isFav} title={favTitle} onClick={handleFavClick} compact />
               {category && (
                 <category.icon className={cn("h-3 w-3 shrink-0", category.color)} />
               )}
@@ -151,7 +161,21 @@ export function CourseCard({ course, files, onDelete, onEdit, view = "grid" }: P
         {!course.banner && (
           <Folder className="absolute right-4 top-4 h-12 w-12 text-white/40" strokeWidth={1.5} />
         )}
-        <div className="absolute right-2 top-2">
+        <div className="absolute right-2 top-2 flex items-center gap-1">
+          {onToggleFavorite && (
+            <button
+              onClick={handleFavClick}
+              title={favTitle}
+              className={cn(
+                "rounded-lg p-1.5 backdrop-blur-sm transition-colors",
+                isFav
+                  ? "bg-yellow-400/90 text-yellow-900 hover:bg-yellow-300"
+                  : "bg-black/30 text-white/90 hover:bg-white/20 hover:text-white",
+              )}
+            >
+              <Star className={cn("h-4 w-4", isFav && "fill-current")} />
+            </button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
               <button className={cn(
@@ -252,5 +276,23 @@ function RowActions({ onDelete, onEdit, compact = false }: { onDelete: () => voi
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function FavStar({
+  isFav, title, onClick, compact = false,
+}: { isFav: boolean; title: string; onClick: (e: React.MouseEvent) => void; compact?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={cn(
+        "shrink-0 rounded-md transition-colors",
+        compact ? "p-0.5" : "p-1",
+        isFav ? "text-yellow-500 hover:text-yellow-400" : "text-muted-foreground/60 hover:text-yellow-500",
+      )}
+    >
+      <Star className={cn(compact ? "h-3 w-3" : "h-3.5 w-3.5", isFav && "fill-current")} />
+    </button>
   );
 }
