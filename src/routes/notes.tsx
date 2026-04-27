@@ -10,14 +10,15 @@ import {
   ToggleGroup, ToggleGroupItem,
 } from "@/components/ui/toggle-group";
 import {
-  getDB, type Course, type CourseFileMeta, type CodeSnapshot,
+  getDB, setFileComment, deleteSnapshot, restoreSnapshot,
+  type Course, type CourseFileMeta, type CodeSnapshot,
 } from "@/lib/db";
 import { highlightCode, languageLabel, SUPPORTED_LANGUAGES } from "@/lib/highlight";
 import { useI18n } from "@/lib/i18n";
 import { getCategory } from "@/lib/categories";
 import {
   Search, NotebookPen, Code2, FileText, PlayCircle, FileAudio, FileImage, File as FileIcon,
-  ExternalLink, Copy, X,
+  ExternalLink, Copy, X, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -82,6 +83,52 @@ function NotesPage() {
   const [query, setQuery] = useState("");
   const [courseId, setCourseId] = useState<string>("__all");
   const [language, setLanguage] = useState<string>("__all");
+
+  // ---------- Delete handlers (with Undo toasts) ----------
+
+  const handleDeleteNote = async (row: NoteRow) => {
+    const previous = row.html;
+    // Optimistic remove from the list.
+    setNotes((prev) => prev.filter((n) => n.fileId !== row.fileId));
+    await setFileComment(row.fileId, undefined);
+    toast.success(t("note.deleted"), {
+      action: {
+        label: t("snap.undo"),
+        onClick: async () => {
+          const restored = await setFileComment(row.fileId, previous);
+          if (restored) {
+            setNotes((prev) => {
+              if (prev.some((n) => n.fileId === row.fileId)) return prev;
+              return [{ ...row, html: previous, updatedAt: restored.updatedAt ?? Date.now() }, ...prev]
+                .sort((a, b) => b.updatedAt - a.updatedAt);
+            });
+            toast.success(t("note.restored"));
+          }
+        },
+      },
+    });
+  };
+
+  const handleDeleteSnap = async (row: SnapRow) => {
+    setSnaps((prev) => prev.filter((s) => s.id !== row.id));
+    await deleteSnapshot(row.id);
+    toast.success(t("snap.deleted"), {
+      action: {
+        label: t("snap.undo"),
+        onClick: async () => {
+          const restored = await restoreSnapshot(row.id);
+          if (restored) {
+            setSnaps((prev) => {
+              if (prev.some((s) => s.id === row.id)) return prev;
+              return [{ ...row, ...restored }, ...prev]
+                .sort((a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt));
+            });
+            toast.success(t("snap.restored"));
+          }
+        },
+      },
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -271,7 +318,7 @@ function NotesPage() {
                 ) : (
                   <ul className="grid gap-3 sm:grid-cols-2">
                     {filteredNotes.map((n) => (
-                      <NoteCard key={n.fileId} row={n} query={query} />
+                      <NoteCard key={n.fileId} row={n} query={query} onDelete={() => handleDeleteNote(n)} />
                     ))}
                   </ul>
                 )}
@@ -288,7 +335,7 @@ function NotesPage() {
                 ) : (
                   <ul className="space-y-3">
                     {filteredSnaps.map((s) => (
-                      <SnapCard key={s.id} row={s} />
+                      <SnapCard key={s.id} row={s} onDelete={() => handleDeleteSnap(s)} />
                     ))}
                   </ul>
                 )}
