@@ -19,6 +19,8 @@ import { Toggle } from "@/components/ui/toggle";
 import { EditCourseDialog } from "@/components/EditCourseDialog";
 import { getCategory } from "@/lib/categories";
 import { useI18n } from "@/lib/i18n";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { ListTree as ListTreeIcon } from "lucide-react";
 
 export const Route = createFileRoute("/course/$courseId")({
   component: CoursePage,
@@ -51,6 +53,7 @@ function CoursePage() {
   const [editing, setEditing] = useState(false);
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -262,6 +265,119 @@ function CoursePage() {
     setFiles((prev) => prev.map((x) => (x.id === f.id ? f : x)));
   };
 
+  // Reusable sidebar markup — rendered both in the desktop <aside> and in the
+  // mobile Sheet drawer. Pass `closeOnSelect=true` from mobile so that picking
+  // a file dismisses the drawer to expose the viewer.
+  const renderSidebar = (closeOnSelect = false) => (
+    <>
+      <div className="space-y-3 border-b border-border p-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("course.search")}
+            className="rounded-xl pl-9 text-sm"
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <ToggleGroup
+            type="single"
+            value={filter}
+            onValueChange={(v) => v && setFilter(v as typeof filter)}
+            className="justify-start gap-1"
+          >
+            <ToggleGroupItem value="all" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterAll")}</ToggleGroupItem>
+            <ToggleGroupItem value="video" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterVideos")}</ToggleGroupItem>
+            <ToggleGroupItem value="pdf" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterPdfs")}</ToggleGroupItem>
+            <ToggleGroupItem value="unwatched" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterPending")}</ToggleGroupItem>
+          </ToggleGroup>
+          <div className="flex items-center gap-1">
+            <Toggle
+              size="sm"
+              pressed={flatView === "on"}
+              onPressedChange={(p) => setFlatView(p ? "on" : "off")}
+              className="h-7 rounded-lg px-2"
+              title={flatView === "on" ? t("course.foldersFlat") : t("course.foldersTree")}
+              aria-label={t("course.toggleFolders")}
+            >
+              {flatView === "on" ? <ListTree className="h-3.5 w-3.5" /> : <FolderTree className="h-3.5 w-3.5" />}
+            </Toggle>
+            {focusFolder && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFocusFolder(null)}
+                className="h-7 gap-1 rounded-lg px-2 text-xs"
+                title={t("course.clearFocus")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto p-2">
+        {multiSelected.size > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-primary/30 bg-primary-soft px-2 py-1.5">
+            <span className="text-xs font-medium text-primary">
+              {t("course.bulkSelected", { n: multiSelected.size, plural: multiSelected.size === 1 ? "" : "s" })}
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void doBulkSetWatched(true)}
+                className="h-7 gap-1 rounded-lg px-2 text-xs"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t("course.bulkMarkWatched")}</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void doBulkSetWatched(false)}
+                className="h-7 gap-1 rounded-lg px-2 text-xs"
+              >
+                <Circle className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t("course.bulkMarkUnwatched")}</span>
+              </Button>
+              <button
+                onClick={() => setMultiSelected(new Set())}
+                title={t("course.bulkClear")}
+                className="rounded p-1 text-primary/70 hover:bg-primary/10 hover:text-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+        {filtered.length === 0 ? (
+          <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t("course.noFiles")}</p>
+        ) : (
+          <FileTree
+            files={filtered}
+            selectedId={selectedId}
+            onSelect={(f) => {
+              setSelectedId(f.id);
+              if (closeOnSelect) setMobileTreeOpen(false);
+            }}
+            flat={flatView === "on"}
+            focusFolder={focusFolder}
+            onSetFocusFolder={setFocusFolder}
+            highlightFolder={highlightFolder}
+            selectedIds={multiSelected}
+            onMultiSelect={handleMultiSelect}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            expandedFolders={expandedFolders}
+            onExpandedFoldersChange={setExpandedFolders}
+          />
+        )}
+      </div>
+    </>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -369,111 +485,31 @@ function CoursePage() {
 
       {/* Main */}
       <div className="grid flex-1 overflow-hidden lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
-        {/* Sidebar */}
-        <aside className="flex flex-col overflow-hidden border-b border-border bg-card lg:border-b-0 lg:border-r">
-          <div className="space-y-3 border-b border-border p-4">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("course.search")}
-                className="rounded-xl pl-9 text-sm"
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <ToggleGroup
-                type="single"
-                value={filter}
-                onValueChange={(v) => v && setFilter(v as typeof filter)}
-                className="justify-start gap-1"
-              >
-                <ToggleGroupItem value="all" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterAll")}</ToggleGroupItem>
-                <ToggleGroupItem value="video" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterVideos")}</ToggleGroupItem>
-                <ToggleGroupItem value="pdf" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterPdfs")}</ToggleGroupItem>
-                <ToggleGroupItem value="unwatched" size="sm" className="h-7 rounded-lg px-2.5 text-xs">{t("course.filterPending")}</ToggleGroupItem>
-              </ToggleGroup>
-              <div className="flex items-center gap-1">
-                <Toggle
-                  size="sm"
-                  pressed={flatView === "on"}
-                  onPressedChange={(p) => setFlatView(p ? "on" : "off")}
-                  className="h-7 rounded-lg px-2"
-                  title={flatView === "on" ? t("course.foldersFlat") : t("course.foldersTree")}
-                  aria-label={t("course.toggleFolders")}
-                >
-                  {flatView === "on" ? <ListTree className="h-3.5 w-3.5" /> : <FolderTree className="h-3.5 w-3.5" />}
-                </Toggle>
-                {focusFolder && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setFocusFolder(null)}
-                    className="h-7 gap-1 rounded-lg px-2 text-xs"
-                    title={t("course.clearFocus")}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto p-2">
-            {multiSelected.size > 0 && (
-              <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-primary/30 bg-primary-soft px-2 py-1.5">
-                <span className="text-xs font-medium text-primary">
-                  {t("course.bulkSelected", { n: multiSelected.size, plural: multiSelected.size === 1 ? "" : "s" })}
-                </span>
-                <div className="ml-auto flex items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void doBulkSetWatched(true)}
-                    className="h-7 gap-1 rounded-lg px-2 text-xs"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t("course.bulkMarkWatched")}</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void doBulkSetWatched(false)}
-                    className="h-7 gap-1 rounded-lg px-2 text-xs"
-                  >
-                    <Circle className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">{t("course.bulkMarkUnwatched")}</span>
-                  </Button>
-                  <button
-                    onClick={() => setMultiSelected(new Set())}
-                    title={t("course.bulkClear")}
-                    className="rounded p-1 text-primary/70 hover:bg-primary/10 hover:text-primary"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-            {filtered.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">{t("course.noFiles")}</p>
-            ) : (
-              <FileTree
-                files={filtered}
-                selectedId={selectedId}
-                onSelect={(f) => setSelectedId(f.id)}
-                flat={flatView === "on"}
-                focusFolder={focusFolder}
-                onSetFocusFolder={setFocusFolder}
-                highlightFolder={highlightFolder}
-                selectedIds={multiSelected}
-                onMultiSelect={handleMultiSelect}
-                sortMode={sortMode}
-                onSortModeChange={setSortMode}
-                expandedFolders={expandedFolders}
-                onExpandedFoldersChange={setExpandedFolders}
-              />
-            )}
-          </div>
+        {/* Desktop sidebar */}
+        <aside className="hidden flex-col overflow-hidden border-b border-border bg-card lg:flex lg:border-b-0 lg:border-r">
+          {renderSidebar()}
         </aside>
+
+        {/* Mobile floating "Browse files" button */}
+        <button
+          type="button"
+          onClick={() => setMobileTreeOpen(true)}
+          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-elevated transition-transform hover:scale-105 lg:hidden"
+          aria-label={t("course.openFiles")}
+        >
+          <ListTreeIcon className="h-4 w-4" />
+          <span>{t("course.files")}</span>
+        </button>
+
+        {/* Mobile drawer */}
+        <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
+          <SheetContent side="left" className="flex w-[88vw] max-w-sm flex-col p-0 sm:w-[420px]">
+            <SheetTitle className="sr-only">{t("course.openFiles")}</SheetTitle>
+            <div className="flex min-h-0 flex-1 flex-col bg-card">
+              {renderSidebar(true)}
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Viewer */}
         <section className="overflow-hidden">
