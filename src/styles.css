@@ -3,7 +3,7 @@
 @source "../src";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark, [data-theme="dark"], [data-theme="midnight"], [data-theme="mocha"], [data-theme="carbon"], [data-theme="nord"], [data-theme="dracula"]) *);
+@custom-variant dark (&:is(.dark, [data-theme="dark"], [data-theme="midnight"], [data-theme="mocha"], [data-theme="carbon"], [data-theme="nord"], [data-theme="tokyo-night"], [data-theme="cappuccino"], [data-theme="dracula"]) *);
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -270,6 +270,8 @@
   html[data-theme="mocha"],
   html[data-theme="carbon"],
   html[data-theme="nord"],
+  html[data-theme="tokyo-night"],
+  html[data-theme="cappuccino"],
   html[data-theme="dracula"] {
     color-scheme: dark;
   }
