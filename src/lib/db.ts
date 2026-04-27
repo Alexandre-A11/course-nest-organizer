@@ -180,6 +180,15 @@ export async function deleteCourse(id: string) {
     c2 = await c2.continue();
   }
   await tx2.done;
+  // Wipe code snapshots for this course (mirrors the notes cascade above).
+  const tx3 = db.transaction("snapshots", "readwrite");
+  const idx3 = tx3.store.index("byCourse");
+  let c3 = await idx3.openCursor(id);
+  while (c3) {
+    await c3.delete();
+    c3 = await c3.continue();
+  }
+  await tx3.done;
   // Remember the deletion so sync can propagate it.
   rememberDeletedCourse(id);
 }
