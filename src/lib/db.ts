@@ -66,6 +66,8 @@ export interface Course {
   color: string; // accent color seed
   // Optional category id (see src/lib/categories.ts)
   category?: string;
+  /** Pinned to the top of the home grid when true. */
+  favorite?: boolean;
   // Optional banner image stored as a data URL (kept inline so it survives
   // export/sync without separate blob storage).
   banner?: string;
