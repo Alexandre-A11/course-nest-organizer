@@ -44,22 +44,22 @@ export function ThemeToggle() {
           </div>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {themes.map((t) => {
-          const active = t.id === theme;
+        {themes.map((th) => {
+          const active = th.id === theme;
           return (
             <DropdownMenuItem
-              key={t.id}
-              onClick={() => setTheme(t.id)}
+              key={th.id}
+              onClick={() => setTheme(th.id)}
               className="flex items-center gap-3 rounded-lg py-2"
             >
               <div className="flex h-8 w-12 overflow-hidden rounded-md ring-1 ring-border">
-                {t.swatches.map((c, i) => (
+                {th.swatches.map((c, i) => (
                   <div key={i} style={{ background: c }} className="flex-1" />
                 ))}
               </div>
               <div className="flex-1 leading-tight">
-                <div className="text-sm font-medium text-foreground">{t.name}</div>
-                <div className="text-[11px] text-muted-foreground">{t.description}</div>
+                <div className="text-sm font-medium text-foreground">{th.name}</div>
+                <div className="text-[11px] text-muted-foreground">{th.description}</div>
               </div>
               {active && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
