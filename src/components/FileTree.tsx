@@ -93,6 +93,26 @@ export function FileTree({
 
   const expandedSet = useMemo(() => new Set(expandedFolders ?? []), [expandedFolders]);
 
+  /**
+   * Map of folder path → completion stats so we can flag fully-watched
+   * folders with a check icon. A folder is "complete" only when it contains
+   * at least one file and every descendant file is `watched`.
+   */
+  const folderProgress = useMemo(() => {
+    const map = new Map<string, { total: number; done: number }>();
+    for (const f of visible) {
+      const parts = f.path.split("/");
+      for (let i = 1; i < parts.length; i++) {
+        const p = parts.slice(0, i).join("/");
+        const cur = map.get(p) ?? { total: 0, done: 0 };
+        cur.total += 1;
+        if (f.watched) cur.done += 1;
+        map.set(p, cur);
+      }
+    }
+    return map;
+  }, [visible]);
+
   const toggleFolder = (path: string) => {
     if (!onExpandedFoldersChange) return;
     const next = new Set(expandedSet);
@@ -101,6 +121,11 @@ export function FileTree({
   };
 
   const expandAll = () => onExpandedFoldersChange?.(allFolderPaths);
+  /**
+   * Fully recursive collapse: even when sub-folders had been previously
+   * expanded, an empty array now wins because TreeNode no longer auto-opens
+   * top-level entries when the persisted set is empty.
+   */
   const collapseAll = () => onExpandedFoldersChange?.([]);
 
   const sortMenu = (
@@ -186,7 +211,7 @@ export function FileTree({
           selectedIds={selectedIds}
           expandedSet={expandedSet}
           onToggleFolder={toggleFolder}
-          defaultOpen={true}
+          folderProgress={folderProgress}
         />
       ))}
     </div>
