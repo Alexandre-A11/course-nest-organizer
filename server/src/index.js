@@ -22,7 +22,7 @@ import { readdir, stat } from "node:fs/promises";
 const PORT = Number(process.env.PORT || 8787);
 const DATA_DIR = process.env.DATA_DIR || path.resolve("./data");
 const COURSES_DIR = process.env.COURSES_DIR || path.resolve("./courses");
-const VERSION = "1.1.0";
+const VERSION = "1.0.0";
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(COURSES_DIR, { recursive: true });
@@ -139,7 +139,7 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, version: VERSION, coursesDir: COURSES_DIR });
+  res.json({ ok: true, version: "1.0.0" });
 });
 
 app.get("/library", (_req, res) => {
