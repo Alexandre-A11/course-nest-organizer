@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { upsertFile, saveFileProgress } from "@/lib/db";
-import { getFileFromCourse, formatBytes } from "@/lib/fs";
-import { getCourseFiles } from "@/lib/sessionFiles";
+import { formatBytes } from "@/lib/fs";
 import { streamUrlFor } from "@/lib/syncClient";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,22 +98,12 @@ export function FileViewer({ course, file, onUpdated, onLocateFolder }: Props) {
     (async () => {
       try {
         // Remote courses are streamed via HTTP — no Blob, no objectURL.
-        if (course.source === "remote" && course.remoteFolder) {
-          const stream = streamUrlFor(course.remoteFolder, file.path);
-          if (!stream) throw new Error(t("viewer.openErr"));
-          if (!active) return;
-          blobRef.current = null;
-          setUrl(stream);
-          setLoading(false);
-          return;
-        }
-        const memFiles = course.source === "memory" ? getCourseFiles(course.id) : undefined;
-        const cachedId = course.source === "cached" ? file.id : undefined;
-        const blob = await getFileFromCourse(course.handle, file.path, memFiles, cachedId);
+        if (!course.remoteFolder) throw new Error(t("viewer.openErr"));
+        const stream = streamUrlFor(course.remoteFolder, file.path);
+        if (!stream) throw new Error(t("viewer.openErr"));
         if (!active) return;
-        blobRef.current = blob;
-        objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
+        blobRef.current = null;
+        setUrl(stream);
         setLoading(false);
       } catch (e) {
         if (!active) return;
