@@ -103,6 +103,16 @@ function CoursePage() {
       }
       const fs = await listFiles(courseId);
       setFiles(fs);
+      // First-load fallback for the FileTree expansion: if the course has
+      // never had a persisted set, open every top-level folder by default.
+      if (!Array.isArray(c.expandedFolders)) {
+        const top = new Set<string>();
+        for (const f of fs) {
+          const i = f.path.indexOf("/");
+          if (i > 0) top.add(f.path.slice(0, i));
+        }
+        setExpandedFoldersState(Array.from(top));
+      }
       // Auto-select last opened file if it still exists.
       if (c.lastFileId && fs.some((f) => f.id === c.lastFileId)) {
         setSelectedId(c.lastFileId);
