@@ -12,7 +12,7 @@ RUN npm install
 RUN npm run build
 
 # 2. Instala as dependências específicas do servidor backend
-RUN cd server && npm install --omit=dev --build-from-source
+RUN cd server && npm install --build-from-source
 
 # Expõe as portas de ambos os serviços
 EXPOSE 4173
