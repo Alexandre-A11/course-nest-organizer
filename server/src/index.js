@@ -384,8 +384,8 @@ app.get(/^\/stream\/([^/]+)\/(.+)$/, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[course-vault-server] v${VERSION} listening on :${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[course-vault-server] v${VERSION} listening on 0.0.0.0:${PORT}`);
   console.log(`  data dir   : ${DATA_DIR}`);
   console.log(`  courses dir: ${COURSES_DIR}`);
   console.log(`  mode       : API-only (frontend served separately by Vite preview)`);
