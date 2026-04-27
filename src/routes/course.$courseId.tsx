@@ -19,6 +19,8 @@ import { Toggle } from "@/components/ui/toggle";
 import { EditCourseDialog } from "@/components/EditCourseDialog";
 import { getCategory } from "@/lib/categories";
 import { useI18n } from "@/lib/i18n";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { ListTree as ListTreeIcon } from "lucide-react";
 
 export const Route = createFileRoute("/course/$courseId")({
   component: CoursePage,
@@ -51,6 +53,7 @@ function CoursePage() {
   const [editing, setEditing] = useState(false);
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
   const fallbackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -370,7 +373,7 @@ function CoursePage() {
       {/* Main */}
       <div className="grid flex-1 overflow-hidden lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
         {/* Sidebar */}
-        <aside className="flex flex-col overflow-hidden border-b border-border bg-card lg:border-b-0 lg:border-r">
+        <aside className="hidden flex-col overflow-hidden border-b border-border bg-card lg:flex lg:border-b-0 lg:border-r">
           <div className="space-y-3 border-b border-border p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
