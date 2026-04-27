@@ -23,19 +23,17 @@ export interface Course {
   name: string;
   description?: string;
   createdAt: number;
-  // Source can be:
-  //  - "handle": File System Access API directory handle (Chromium). Survives
-  //    reload but may need re-permission on each session.
-  //  - "memory": user picked via <input webkitdirectory>. Files only live in
-  //    RAM for this session unless `cached: true`.
-  //  - "cached": files are stored as Blobs inside IndexedDB (see fileBlobs
-  //    store). Works fully offline across sessions, no re-pick needed.
-  //  - "remote": files live on a self-hosted Course Vault server and are
-  //    streamed via HTTP. `remoteFolder` is the folder name on the server.
-  source: "handle" | "memory" | "cached" | "remote";
-  // Native handle (only present in Chromium-based browsers)
+  /**
+   * Course Vault is now a fully remote app — every course streams from a
+   * self-hosted Course Vault server (HTTP Range). The legacy `handle`,
+   * `memory` and `cached` sources have been removed; the type is kept as a
+   * union for backward-compat in older IndexedDB rows so we can detect &
+   * purge them on first boot. New courses are always `"remote"`.
+   */
+  source: "remote" | "handle" | "memory" | "cached";
+  /** Legacy: native FSA handle. Never written by new code; only read for purge. */
   handle?: FileSystemDirectoryHandle;
-  // For "memory" sources we store the original folder name for re-matching
+  /** Legacy: original folder name (memory mode). Only read for purge. */
   rootName?: string;
   /** For "remote" sources: folder name inside the server's COURSES_DIR. */
   remoteFolder?: string;
@@ -49,12 +47,14 @@ export interface Course {
   // you left off" feature on the home page.
   lastFileId?: string;
   lastAccessedAt?: number;
-  /**
-   * Custom user-defined ordering (drag & drop) for files and folders inside
-   * this course. Maps a relative path (file or folder) → numeric orderIndex.
-   * Items without an entry fall back to natural alphanumeric ordering.
-   */
-  customOrder?: Record<string, number>;
+  /** Persisted FileTree UI state — restored when the user reopens the course. */
+  expandedFolders?: string[];
+  /** Folder currently focused in the tree (Show only this folder). */
+  focusedFolder?: string | null;
+  /** "natural" = A→Z natural sort; "reverse" = Z→A; "progress" = unwatched first. */
+  sortMode?: "natural" | "reverse" | "progress";
+  /** When true, the FileTree shows a flattened, type-grouped list. */
+  flattenFolders?: boolean;
   /** Last local mutation timestamp (ms). Used by the sync layer. */
   updatedAt?: number;
 }
