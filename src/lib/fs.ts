@@ -28,7 +28,6 @@ export async function scanDirectory(
   prefix = "",
 ): Promise<ScannedFile[]> {
   const out: ScannedFile[] = [];
-  // values() is part of the spec but not in lib.dom yet in some setups
   const iter = (handle as unknown as { values: () => AsyncIterable<FileSystemHandle> }).values();
   for await (const entry of iter) {
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -38,15 +37,8 @@ export async function scanDirectory(
     } else {
       try {
         const file = await (entry as FileSystemFileHandle).getFile();
-        out.push({
-          path,
-          name: entry.name,
-          size: file.size,
-          kind: getKind(entry.name),
-        });
-      } catch {
-        // skip unreadable
-      }
+        out.push({ path, name: entry.name, size: file.size, kind: getKind(entry.name) });
+      } catch { /* skip */ }
     }
   }
   return out.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
@@ -61,7 +53,6 @@ export async function getFileFromCourse(
   if (cachedFileId) {
     const blob = await getFileBlob(cachedFileId);
     if (!blob) throw new Error("Arquivo em cache não encontrado");
-    // Wrap Blob as File so consumers that read .name work consistently.
     const name = relPath.split("/").pop() ?? "file";
     return new File([blob], name, { type: blob.type });
   }
@@ -73,9 +64,7 @@ export async function getFileFromCourse(
   if (!rootHandle) throw new Error("Pasta do curso não está acessível");
   const parts = relPath.split("/");
   let dir: FileSystemDirectoryHandle = rootHandle;
-  for (let i = 0; i < parts.length - 1; i++) {
-    dir = await dir.getDirectoryHandle(parts[i]);
-  }
+  for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i]);
   const fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
   return fileHandle.getFile();
 }
@@ -99,46 +88,19 @@ export function isFsAccessSupported(): boolean {
   return typeof window !== "undefined" && "showDirectoryPicker" in window;
 }
 
-export function getBrowserInfo(): { name: string; supportsHandle: boolean; isLinux: boolean } {
-  if (typeof navigator === "undefined") {
-    return { name: "unknown", supportsHandle: false, isLinux: false };
-  }
-  const ua = navigator.userAgent;
-  const isLinux = /Linux/i.test(ua) && !/Android/i.test(ua);
-  let name = "unknown";
-  if (/Firefox\//.test(ua)) name = "Firefox";
-  else if (/Edg\//.test(ua)) name = "Edge";
-  else if (/Chrome\//.test(ua)) name = "Chrome";
-  else if (/Safari\//.test(ua)) name = "Safari";
-  return { name, supportsHandle: isFsAccessSupported(), isLinux };
-}
-
-/**
- * Scan a flat list of File objects (from <input webkitdirectory>) and turn
- * them into ScannedFile entries. The webkitRelativePath includes the root
- * folder name as the first segment — we strip it.
- */
 export function scanFileList(fileList: FileList | File[]): { files: ScannedFile[]; rootName: string; fileMap: Map<string, File> } {
   const arr = Array.from(fileList);
   const fileMap = new Map<string, File>();
   let rootName = "";
   const files: ScannedFile[] = [];
-
   for (const f of arr) {
-    // webkitRelativePath: "CourseName/sub/file.mp4"
     const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
     const parts = rel.split("/");
     if (!rootName && parts.length > 1) rootName = parts[0];
     const path = parts.length > 1 ? parts.slice(1).join("/") : f.name;
     fileMap.set(path, f);
-    files.push({
-      path,
-      name: f.name,
-      size: f.size,
-      kind: getKind(f.name),
-    });
+    files.push({ path, name: f.name, size: f.size, kind: getKind(f.name) });
   }
-
   files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
   return { files, rootName: rootName || "Curso", fileMap };
 }
@@ -174,14 +136,54 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+export type SortMode = "natural" | "reverse" | "progress";
+
+/**
+ * Compare two files for the "by progress" sort: unwatched first, then watched.
+ * Within each bucket, falls back to natural alphanumeric on `name`.
+ */
+function byProgress(a: { watched: boolean; name: string }, b: { watched: boolean; name: string }) {
+  if (a.watched !== b.watched) return a.watched ? 1 : -1;
+  return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+}
+
+/** Natural-sort comparator (locale-aware, numeric-aware). */
+function naturalCmp(a: string, b: string) {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+/**
+ * Build a flat, type-grouped, ordering-preserving list of files for the
+ * "Ocultar pastas" view. Files keep the natural order of their parent folder
+ * (so course sequence is preserved), but everything is grouped by kind:
+ * videos first, then PDFs, then audio, then docs/images/other.
+ */
+const KIND_ORDER: Record<FileKind, number> = {
+  video: 0, pdf: 1, audio: 2, doc: 3, image: 4, other: 5,
+};
+
+export function flattenForGroupedView(files: CourseFileMeta[], mode: SortMode): CourseFileMeta[] {
+  // 1) Compute each file's position in the natural folder order so we can
+  //    reuse it as the secondary sort within each kind bucket.
+  const sortedNatural = [...files].sort((a, b) => naturalCmp(a.path, b.path));
+  const naturalIndex = new Map(sortedNatural.map((f, i) => [f.id, i]));
+
+  return [...files].sort((a, b) => {
+    if (KIND_ORDER[a.kind] !== KIND_ORDER[b.kind]) return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+    if (mode === "progress" && a.watched !== b.watched) return a.watched ? 1 : -1;
+    const idxA = naturalIndex.get(a.id) ?? 0;
+    const idxB = naturalIndex.get(b.id) ?? 0;
+    return mode === "reverse" ? idxB - idxA : idxA - idxB;
+  });
+}
+
 /**
  * Build a hierarchical folder tree from a flat list of files.
  * Children at every level are sorted by:
- *   1. customOrder[child.path] (if defined — drag-and-drop user override)
- *   2. folders before files
- *   3. natural alphanumeric (localeCompare numeric+sensitivity:base)
+ *   1. folders before files (always)
+ *   2. by `mode` — natural / reverse / progress
  */
-export function buildTree(files: CourseFileMeta[], customOrder?: Record<string, number>) {
+export function buildTree(files: CourseFileMeta[], mode: SortMode = "natural") {
   type Node = {
     name: string;
     path: string;
@@ -211,18 +213,13 @@ export function buildTree(files: CourseFileMeta[], customOrder?: Record<string, 
   const sortChildren = (n: Node) => {
     const arr = [...n.children.values()];
     arr.sort((a, b) => {
-      const aOrder = customOrder?.[a.path];
-      const bOrder = customOrder?.[b.path];
-      // Both have a custom order → numeric compare.
-      if (aOrder != null && bOrder != null) return aOrder - bOrder;
-      // Only one has a custom order → it wins (lower index = first).
-      if (aOrder != null) return -1;
-      if (bOrder != null) return 1;
-      // Folders before files within the same level.
+      // Folders always above files within the same level.
       const aIsFolder = !a.file;
       const bIsFolder = !b.file;
       if (aIsFolder !== bIsFolder) return aIsFolder ? -1 : 1;
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      if (mode === "progress" && a.file && b.file) return byProgress(a.file, b.file);
+      const cmp = naturalCmp(a.name, b.name);
+      return mode === "reverse" ? -cmp : cmp;
     });
     n.children = new Map(arr.map((c) => [c.name, c]));
     for (const c of arr) sortChildren(c);

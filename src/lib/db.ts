@@ -23,19 +23,17 @@ export interface Course {
   name: string;
   description?: string;
   createdAt: number;
-  // Source can be:
-  //  - "handle": File System Access API directory handle (Chromium). Survives
-  //    reload but may need re-permission on each session.
-  //  - "memory": user picked via <input webkitdirectory>. Files only live in
-  //    RAM for this session unless `cached: true`.
-  //  - "cached": files are stored as Blobs inside IndexedDB (see fileBlobs
-  //    store). Works fully offline across sessions, no re-pick needed.
-  //  - "remote": files live on a self-hosted Course Vault server and are
-  //    streamed via HTTP. `remoteFolder` is the folder name on the server.
-  source: "handle" | "memory" | "cached" | "remote";
-  // Native handle (only present in Chromium-based browsers)
+  /**
+   * Course Vault is now a fully remote app — every course streams from a
+   * self-hosted Course Vault server (HTTP Range). The legacy `handle`,
+   * `memory` and `cached` sources have been removed; the type is kept as a
+   * union for backward-compat in older IndexedDB rows so we can detect &
+   * purge them on first boot. New courses are always `"remote"`.
+   */
+  source: "remote" | "handle" | "memory" | "cached";
+  /** Legacy: native FSA handle. Never written by new code; only read for purge. */
   handle?: FileSystemDirectoryHandle;
-  // For "memory" sources we store the original folder name for re-matching
+  /** Legacy: original folder name (memory mode). Only read for purge. */
   rootName?: string;
   /** For "remote" sources: folder name inside the server's COURSES_DIR. */
   remoteFolder?: string;
@@ -55,6 +53,14 @@ export interface Course {
    * Items without an entry fall back to natural alphanumeric ordering.
    */
   customOrder?: Record<string, number>;
+  /** Persisted FileTree UI state — restored when the user reopens the course. */
+  expandedFolders?: string[];
+  /** Folder currently focused in the tree (Show only this folder). */
+  focusedFolder?: string | null;
+  /** "natural" = A→Z natural sort; "reverse" = Z→A; "progress" = unwatched first. */
+  sortMode?: "natural" | "reverse" | "progress";
+  /** When true, the FileTree shows a flattened, type-grouped list. */
+  flattenFolders?: boolean;
   /** Last local mutation timestamp (ms). Used by the sync layer. */
   updatedAt?: number;
 }
@@ -333,12 +339,40 @@ export async function bulkSetWatched(fileIds: string[], watched: boolean): Promi
   return updated;
 }
 
-/** Persist a new custom drag-and-drop order map for a course. */
+/** Persist FileTree UI state for a course. */
+export async function saveCourseUiState(
+  courseId: string,
+  patch: Partial<Pick<Course, "expandedFolders" | "focusedFolder" | "sortMode" | "flattenFolders">>,
+) {
+  const db = await getDB();
+  const c = await db.get("courses", courseId);
+  if (!c) return;
+  await db.put("courses", { ...c, ...patch, updatedAt: Date.now() });
+}
+
+/** Legacy: persist a custom drag-and-drop order map for a course. */
 export async function saveCourseCustomOrder(courseId: string, order: Record<string, number>) {
   const db = await getDB();
   const c = await db.get("courses", courseId);
   if (!c) return;
   await db.put("courses", { ...c, customOrder: order, updatedAt: Date.now() });
+}
+
+/**
+ * One-shot migration helper called at app boot. Deletes every course that
+ * was added with a now-removed local source (`handle`, `memory`, `cached`)
+ * along with its files & blobs. Returns the names of removed courses so the
+ * UI can show a one-time toast.
+ */
+export async function purgeLegacyLocalCourses(): Promise<string[]> {
+  const db = await getDB();
+  const all = await db.getAll("courses");
+  const toDelete = all.filter((c) => c.source !== "remote");
+  if (toDelete.length === 0) return [];
+  for (const c of toDelete) {
+    await deleteCourse(c.id); // already wipes files + blobs + tombstone
+  }
+  return toDelete.map((c) => c.name);
 }
 
 // ---- Library export / import (JSON) ----

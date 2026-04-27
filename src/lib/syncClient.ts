@@ -48,25 +48,46 @@ export function getServerUrl(): string | null {
 }
 
 /**
- * On startup, if we're not yet connected to a server, probe the current origin
- * for /health. If it responds, treat it as the server URL automatically — this
- * is the case when the user opens http://nas.local:8787 (Docker single-image).
+ * On startup, if we're not yet connected to a server, try in this order:
+ *   1) Same-origin /health (single-container Docker — user hit the API port).
+ *   2) Same-hostname on port 8787 (typical "frontend on :4173 + API on :8787"
+ *      LAN deploy). This means dropping the user into the app at
+ *      http://nas.local:4173 immediately auto-binds the server at
+ *      http://nas.local:8787 with zero config.
  */
 async function autoDetectSameOrigin(): Promise<void> {
   if (typeof window === "undefined") return;
   if (window.localStorage.getItem(URL_KEY)) return; // user already chose
   if (window.localStorage.getItem(AUTO_DETECTED_KEY)) return; // already detected
+  const origin = window.location.origin;
+  const hostname = window.location.hostname;
+  // Helper: probe a candidate URL.
+  const probe = async (candidate: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${candidate}/health`, { method: "GET" });
+      if (!res.ok) return false;
+      const data = (await res.json()) as { ok?: boolean };
+      return !!data.ok;
+    } catch { return false; }
+  };
   try {
-    const origin = window.location.origin;
-    // Don't probe on localhost dev (Vite) — the API isn't there.
-    if (/^(http:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return;
-    const res = await fetch(`${origin}/health`, { method: "GET" });
-    if (!res.ok) return;
-    const data = await res.json() as { ok?: boolean };
-    if (!data.ok) return;
-    window.localStorage.setItem(AUTO_DETECTED_KEY, origin);
-    startPolling();
-    void syncOnce();
+    // 1) Same-origin probe (skip pure localhost dev — API isn't there).
+    const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(hostname);
+    if (!isLocalhost && (await probe(origin))) {
+      window.localStorage.setItem(AUTO_DETECTED_KEY, origin);
+      startPolling();
+      void syncOnce();
+      return;
+    }
+    // 2) Same-hostname on the canonical API port (8787).
+    const proto = window.location.protocol === "https:" ? "https" : "http";
+    const portCandidate = `${proto}://${hostname}:8787`;
+    if (portCandidate !== origin && (await probe(portCandidate))) {
+      window.localStorage.setItem(AUTO_DETECTED_KEY, portCandidate);
+      startPolling();
+      void syncOnce();
+      return;
+    }
   } catch { /* ignore — no server here */ }
 }
 
