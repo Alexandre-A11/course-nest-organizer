@@ -483,9 +483,6 @@ function CoursePage() {
         </div>
       </div>
 
-      {/* Sidebar contents (rendered both in the desktop aside and in the mobile Sheet). */}
-      {(() => null)()}
-
       {/* Main */}
       <div className="grid flex-1 overflow-hidden lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
         {/* Desktop sidebar */}

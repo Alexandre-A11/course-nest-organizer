@@ -347,6 +347,8 @@ const PT: Dict = {
   "notesPage.emptySnaps": "Nenhum snapshot encontrado com esses filtros.",
   "notesPage.openCourse": "Abrir curso",
   "nav.notes": "Notas",
+  "course.openFiles": "Arquivos do curso",
+  "course.files": "Arquivos",
 };
 
 const EN: Dict = {
@@ -673,6 +675,8 @@ const EN: Dict = {
   "notesPage.emptySnaps": "No snapshots match those filters.",
   "notesPage.openCourse": "Open course",
   "nav.notes": "Notes",
+  "course.openFiles": "Course files",
+  "course.files": "Files",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };
