@@ -422,6 +422,7 @@ function courseFingerprint(c: Course): string {
   return [
     c.id, c.name, c.description ?? "", c.color, c.category ?? "",
     c.banner ? "B" : "-", c.lastFileId ?? "", c.lastAccessedAt ?? 0,
+    c.favorite ? "F" : "-",
     c.updatedAt ?? c.createdAt ?? 0,
   ].join("|");
 }
