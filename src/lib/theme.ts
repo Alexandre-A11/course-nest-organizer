@@ -39,11 +39,42 @@ export const THEMES: ThemeDef[] = [
 ];
 
 const STORAGE_KEY = "course-vault.theme";
+const AUTO_LIGHT_KEY = "course-vault.theme.autoLight";
+const AUTO_DARK_KEY  = "course-vault.theme.autoDark";
 const DAY_THEMES: ConcreteThemeId[] = ["cloud", "solar", "forest", "sepia"];
 const NIGHT_THEMES: ConcreteThemeId[] = ["dark", "mocha", "carbon", "nord", "tokyo-night", "cappuccino", "dracula"];
 
 function isConcreteTheme(id: string): id is ConcreteThemeId {
   return THEMES.some((t) => t.id === id && !t.isSpecial);
+}
+
+/** Themes the user can pick as their preferred Light slot of Auto mode. */
+export const LIGHT_THEMES: ConcreteThemeId[] = DAY_THEMES;
+/** Themes the user can pick as their preferred Dark slot of Auto mode. */
+export const DARK_THEMES: ConcreteThemeId[] = NIGHT_THEMES;
+
+const DEFAULT_AUTO_LIGHT: ConcreteThemeId = "cloud";
+const DEFAULT_AUTO_DARK: ConcreteThemeId = "tokyo-night";
+
+export function getAutoLightPreference(): ConcreteThemeId {
+  if (typeof window === "undefined") return DEFAULT_AUTO_LIGHT;
+  const raw = window.localStorage.getItem(AUTO_LIGHT_KEY);
+  return raw && LIGHT_THEMES.includes(raw as ConcreteThemeId) ? (raw as ConcreteThemeId) : DEFAULT_AUTO_LIGHT;
+}
+export function getAutoDarkPreference(): ConcreteThemeId {
+  if (typeof window === "undefined") return DEFAULT_AUTO_DARK;
+  const raw = window.localStorage.getItem(AUTO_DARK_KEY);
+  return raw && DARK_THEMES.includes(raw as ConcreteThemeId) ? (raw as ConcreteThemeId) : DEFAULT_AUTO_DARK;
+}
+export function setAutoLightPreference(id: ConcreteThemeId) {
+  if (typeof window === "undefined") return;
+  if (!LIGHT_THEMES.includes(id)) return;
+  try { window.localStorage.setItem(AUTO_LIGHT_KEY, id); } catch { /* ignore */ }
+}
+export function setAutoDarkPreference(id: ConcreteThemeId) {
+  if (typeof window === "undefined") return;
+  if (!DARK_THEMES.includes(id)) return;
+  try { window.localStorage.setItem(AUTO_DARK_KEY, id); } catch { /* ignore */ }
 }
 
 function isNightTime(date = new Date()) {
@@ -56,7 +87,7 @@ function concreteTheme(id: ConcreteThemeId): ThemeDef {
 }
 
 export function getAutoThemeForTime(): ConcreteThemeId {
-  return isNightTime() ? "tokyo-night" : "cloud";
+  return isNightTime() ? getAutoDarkPreference() : getAutoLightPreference();
 }
 
 export function resolveThemeSelection(id: ThemeId): ThemeDef {
