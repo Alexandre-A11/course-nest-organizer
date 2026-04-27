@@ -99,10 +99,11 @@ export function applyTheme(id: ThemeId) {
  * Night (18:00–06:00)   → only dark themes.
  * Avoids returning the same theme that's already active when possible.
  */
-export function pickRandomThemeForTime(currentId?: ThemeId): ThemeId {
+export function pickRandomThemeForTime(currentId?: ThemeId): ConcreteThemeId {
   const pool = isNightTime() ? NIGHT_THEMES : DAY_THEMES;
-  const candidates = pool.length > 1 && currentId
-    ? pool.filter((t) => t.id !== currentId)
+  const currentConcrete = currentId && isConcreteTheme(currentId) ? currentId : undefined;
+  const candidates = pool.length > 1 && currentConcrete
+    ? pool.filter((t) => t !== currentConcrete)
     : pool;
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
   return pick;
