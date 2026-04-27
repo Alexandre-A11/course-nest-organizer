@@ -314,6 +314,33 @@ export async function saveFileProgress(fileId: string, seconds: number) {
   await db.put("files", { ...f, progress: seconds, updatedAt: Date.now() });
 }
 
+/**
+ * Clear (or restore) the rich-text note attached to a file. Used by the
+ * global /notes dashboard so the user can remove a note without opening the
+ * course. Returns the updated meta (or undefined if the file is missing).
+ */
+export async function setFileComment(
+  fileId: string,
+  comment: string | undefined,
+): Promise<CourseFileMeta | undefined> {
+  const db = await getDB();
+  const f = await db.get("files", fileId);
+  if (!f) return undefined;
+  const next: CourseFileMeta = { ...f, comment, updatedAt: Date.now() };
+  await db.put("files", next);
+  return next;
+}
+
+/** Restore a previously soft-deleted snapshot (Undo for /notes deletes). */
+export async function restoreSnapshot(id: string): Promise<CodeSnapshot | undefined> {
+  const db = await getDB();
+  const cur = await db.get("snapshots", id);
+  if (!cur) return undefined;
+  const next: CodeSnapshot = { ...cur, deleted: false, updatedAt: Date.now() };
+  await db.put("snapshots", next);
+  return next;
+}
+
 // ---- Deletion log (so sync can propagate removals) ----
 
 /**
