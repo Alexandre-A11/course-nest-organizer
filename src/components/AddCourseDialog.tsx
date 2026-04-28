@@ -236,16 +236,23 @@ export function AddCourseDialog({ onAdded }: Props) {
             {breadcrumbs.map((b, i) => (
               <span key={b.path} className="flex items-center gap-1">
                 <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                <button
-                  type="button"
-                  onClick={() => navigateInto(b.path)}
-                  className={cn(
-                    "rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
-                    i === breadcrumbs.length - 1 && "font-semibold text-foreground",
-                  )}
-                >
-                  {b.label}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => navigateInto(b.path)}
+                      className={cn(
+                        "max-w-[140px] truncate rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
+                        i === breadcrumbs.length - 1 && "font-semibold text-foreground",
+                      )}
+                    >
+                      {b.label}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[420px] break-all">
+                    /{b.path}
+                  </TooltipContent>
+                </Tooltip>
               </span>
             ))}
             {remoteParent && (
