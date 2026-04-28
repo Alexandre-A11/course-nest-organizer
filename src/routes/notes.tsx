@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Pager } from "@/components/Pager";
+
+const PAGE_SIZE = 12;
 
 export const Route = createFileRoute("/notes")({
   component: NotesPage,
@@ -83,6 +86,8 @@ function NotesPage() {
   const [query, setQuery] = useState("");
   const [courseId, setCourseId] = useState<string>("__all");
   const [language, setLanguage] = useState<string>("__all");
+  const [notesPage, setNotesPage] = useState(1);
+  const [snapsPage, setSnapsPage] = useState(1);
 
   // ---------- Delete handlers (with Undo toasts) ----------
 
@@ -208,6 +213,22 @@ function NotesPage() {
     });
   }, [snaps, query, courseId, language]);
 
+  // Reset pages when filters change.
+  useEffect(() => { setNotesPage(1); setSnapsPage(1); }, [query, courseId, language, tab]);
+
+  const notesTotalPages = Math.max(1, Math.ceil(filteredNotes.length / PAGE_SIZE));
+  const snapsTotalPages = Math.max(1, Math.ceil(filteredSnaps.length / PAGE_SIZE));
+  const safeNotesPage = Math.min(notesPage, notesTotalPages);
+  const safeSnapsPage = Math.min(snapsPage, snapsTotalPages);
+  const pagedNotes = useMemo(
+    () => filteredNotes.slice((safeNotesPage - 1) * PAGE_SIZE, safeNotesPage * PAGE_SIZE),
+    [filteredNotes, safeNotesPage],
+  );
+  const pagedSnaps = useMemo(
+    () => filteredSnaps.slice((safeSnapsPage - 1) * PAGE_SIZE, safeSnapsPage * PAGE_SIZE),
+    [filteredSnaps, safeSnapsPage],
+  );
+
   const showNotes = tab === "all" || tab === "notes";
   const showSnaps = tab === "all" || tab === "snapshots";
 
@@ -316,11 +337,14 @@ function NotesPage() {
                 {filteredNotes.length === 0 ? (
                   <Empty label={t("notesPage.emptyNotes")} />
                 ) : (
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {filteredNotes.map((n) => (
-                      <NoteCard key={n.fileId} row={n} query={query} onDelete={() => handleDeleteNote(n)} />
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="grid gap-3 sm:grid-cols-2">
+                      {pagedNotes.map((n) => (
+                        <NoteCard key={n.fileId} row={n} query={query} onDelete={() => handleDeleteNote(n)} />
+                      ))}
+                    </ul>
+                    <Pager page={safeNotesPage} totalPages={notesTotalPages} onChange={setNotesPage} />
+                  </>
                 )}
               </Section>
             )}
@@ -333,11 +357,14 @@ function NotesPage() {
                 {filteredSnaps.length === 0 ? (
                   <Empty label={t("notesPage.emptySnaps")} />
                 ) : (
-                  <ul className="space-y-3">
-                    {filteredSnaps.map((s) => (
-                      <SnapCard key={s.id} row={s} onDelete={() => handleDeleteSnap(s)} />
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="space-y-3">
+                      {pagedSnaps.map((s) => (
+                        <SnapCard key={s.id} row={s} onDelete={() => handleDeleteSnap(s)} />
+                      ))}
+                    </ul>
+                    <Pager page={safeSnapsPage} totalPages={snapsTotalPages} onChange={setSnapsPage} />
+                  </>
                 )}
               </Section>
             )}

@@ -20,6 +20,7 @@ import { ManageCategoriesDialog } from "@/components/ManageCategoriesDialog";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ACCENT_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b"];
 const MAX_BANNER_BYTES = 2 * 1024 * 1024;
@@ -235,16 +236,23 @@ export function AddCourseDialog({ onAdded }: Props) {
             {breadcrumbs.map((b, i) => (
               <span key={b.path} className="flex items-center gap-1">
                 <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                <button
-                  type="button"
-                  onClick={() => navigateInto(b.path)}
-                  className={cn(
-                    "rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
-                    i === breadcrumbs.length - 1 && "font-semibold text-foreground",
-                  )}
-                >
-                  {b.label}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => navigateInto(b.path)}
+                      className={cn(
+                        "max-w-[140px] truncate rounded-md px-1.5 py-0.5 transition-colors hover:bg-secondary",
+                        i === breadcrumbs.length - 1 && "font-semibold text-foreground",
+                      )}
+                    >
+                      {b.label}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[420px] break-all">
+                    /{b.path}
+                  </TooltipContent>
+                </Tooltip>
               </span>
             ))}
             {remoteParent && (
@@ -301,7 +309,15 @@ export function AddCourseDialog({ onAdded }: Props) {
                       ) : (
                         <Folder className="h-4 w-4 text-primary" />
                       )}
-                      <span className="flex-1 truncate">{f.name}</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex-1 min-w-0 truncate">{f.name}</span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[420px] break-all">
+                          <span className="block font-medium">{f.name}</span>
+                          <span className="block text-[10px] opacity-80">/{f.path}</span>
+                        </TooltipContent>
+                      </Tooltip>
                       {remoteFolder === f.path && (
                         <span className="text-xs text-muted-foreground">
                           {t("field.filesFound", { n: remoteFileCount, plural: remoteFileCount !== 1 ? "s" : "" })}

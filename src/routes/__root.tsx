@@ -5,6 +5,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { I18nProvider } from "@/lib/i18n";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { purgeLegacyLocalCourses } from "@/lib/db";
 
 function NotFoundComponent() {
@@ -83,8 +84,10 @@ function RootComponent() {
   return (
     <ThemeProvider>
       <I18nProvider>
-        <Outlet />
-        <Toaster position="top-right" />
+        <TooltipProvider delayDuration={200}>
+          <Outlet />
+          <Toaster position="top-right" />
+        </TooltipProvider>
       </I18nProvider>
     </ThemeProvider>
   );

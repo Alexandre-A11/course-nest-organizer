@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Optional self-hosted LAN sync + media streaming server for Course Vault.",
   "scripts": {
-    "start": "tsx src/index.js",
-    "dev": "tsx watch src/index.js"
+    "start": "npx tsx src/index.ts",
+    "dev": "npx tsx watch src/index.ts"
   },
   "engines": {
     "node": ">=20"

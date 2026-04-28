@@ -17,6 +17,7 @@ import { usePref } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { useI18n, relativeTime, plural } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
+import { Pager } from "@/components/Pager";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -34,6 +35,11 @@ export const Route = createFileRoute("/")({
 
 type HomeSort = "recent" | "newest" | "name" | "favorites";
 
+const PAGE_SIZE = 12;
+const RESUME_INACTIVITY_DAYS = 15;
+const RESUME_MAX = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function Home() {
   const { t, lang } = useI18n();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -48,6 +54,7 @@ function Home() {
   const [manageCats, setManageCats] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
+  const [page, setPage] = useState(1);
 
   /**
    * Reload courses + files. When `silent` is true (used by background sync),
@@ -140,6 +147,39 @@ function Home() {
     }
     return sorted;
   }, [courses, categoryFilter, favoritesOnly, sort, lang]);
+
+  // Reset to first page whenever filters change.
+  useEffect(() => { setPage(1); }, [categoryFilter, favoritesOnly, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedCourses = useMemo(
+    () => filteredCourses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredCourses, safePage],
+  );
+
+  /**
+   * "Retome seu foco" — courses started (1–99% progress) where the user
+   * hasn't opened them in more than RESUME_INACTIVITY_DAYS days.
+   */
+  const resumeCourses = useMemo(() => {
+    const now = Date.now();
+    const items: { course: Course; days: number; pct: number }[] = [];
+    for (const c of courses) {
+      const files = filesByCourse[c.id] ?? [];
+      if (files.length === 0) continue;
+      const watched = files.filter((f) => f.watched).length;
+      const pct = Math.round((watched / files.length) * 100);
+      if (pct < 1 || pct > 99) continue;
+      const last = c.lastAccessedAt ?? c.updatedAt ?? c.createdAt ?? 0;
+      if (!last) continue;
+      const days = Math.floor((now - last) / DAY_MS);
+      if (days <= RESUME_INACTIVITY_DAYS) continue;
+      items.push({ course: c, days, pct });
+    }
+    items.sort((a, b) => b.days - a.days);
+    return items.slice(0, RESUME_MAX);
+  }, [courses, filesByCourse]);
 
   const sortLabel = useMemo(() => {
     if (sort === "name") return t("home.sortName");
@@ -261,6 +301,53 @@ function Home() {
               </Link>
             )}
 
+            {resumeCourses.length > 0 && (
+              <section className="mb-6">
+                <header className="mb-3 flex items-end justify-between gap-2">
+                  <div>
+                    <h2 className="font-display text-base font-semibold text-foreground sm:text-lg">
+                      {t("resume.title")}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">{t("resume.subtitle")}</p>
+                  </div>
+                </header>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {resumeCourses.map(({ course, days, pct }) => (
+                    <Link
+                      key={course.id}
+                      to="/course/$courseId"
+                      params={{ courseId: course.id }}
+                      className="group relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-card p-4 shadow-soft transition-all hover:border-amber-500/60 hover:shadow-elevated"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-foreground shadow-elevated"
+                          style={{ background: course.color }}
+                        >
+                          <Play className="h-4 w-4 fill-current" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-display text-sm font-semibold text-foreground">
+                            {course.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{pct}%</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        {t("resume.inactiveDays", { n: days, plural: days !== 1 ? "s" : "" })}
+                      </div>
+                      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-amber-500 transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {visibleCategories.length > 0 && (
               <div className="mb-5 flex items-center gap-1.5 overflow-x-auto pb-1">
                 <button
@@ -322,7 +409,7 @@ function Home() {
                       : "flex flex-col gap-3"
                 }
               >
-                {filteredCourses.map((c) => (
+                {pagedCourses.map((c) => (
                   <CourseCard
                     key={c.id}
                     course={c}
@@ -339,6 +426,9 @@ function Home() {
                   </p>
                 )}
               </div>
+            )}
+            {!loading && (
+              <Pager page={safePage} totalPages={totalPages} onChange={setPage} />
             )}
           </>
         )}
