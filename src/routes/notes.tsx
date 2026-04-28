@@ -337,11 +337,14 @@ function NotesPage() {
                 {filteredNotes.length === 0 ? (
                   <Empty label={t("notesPage.emptyNotes")} />
                 ) : (
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {filteredNotes.map((n) => (
-                      <NoteCard key={n.fileId} row={n} query={query} onDelete={() => handleDeleteNote(n)} />
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="grid gap-3 sm:grid-cols-2">
+                      {pagedNotes.map((n) => (
+                        <NoteCard key={n.fileId} row={n} query={query} onDelete={() => handleDeleteNote(n)} />
+                      ))}
+                    </ul>
+                    <Pager page={safeNotesPage} totalPages={notesTotalPages} onChange={setNotesPage} />
+                  </>
                 )}
               </Section>
             )}
@@ -354,11 +357,14 @@ function NotesPage() {
                 {filteredSnaps.length === 0 ? (
                   <Empty label={t("notesPage.emptySnaps")} />
                 ) : (
-                  <ul className="space-y-3">
-                    {filteredSnaps.map((s) => (
-                      <SnapCard key={s.id} row={s} onDelete={() => handleDeleteSnap(s)} />
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="space-y-3">
+                      {pagedSnaps.map((s) => (
+                        <SnapCard key={s.id} row={s} onDelete={() => handleDeleteSnap(s)} />
+                      ))}
+                    </ul>
+                    <Pager page={safeSnapsPage} totalPages={snapsTotalPages} onChange={setSnapsPage} />
+                  </>
                 )}
               </Section>
             )}
