@@ -301,6 +301,53 @@ function Home() {
               </Link>
             )}
 
+            {resumeCourses.length > 0 && (
+              <section className="mb-6">
+                <header className="mb-3 flex items-end justify-between gap-2">
+                  <div>
+                    <h2 className="font-display text-base font-semibold text-foreground sm:text-lg">
+                      {t("resume.title")}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">{t("resume.subtitle")}</p>
+                  </div>
+                </header>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {resumeCourses.map(({ course, days, pct }) => (
+                    <Link
+                      key={course.id}
+                      to="/course/$courseId"
+                      params={{ courseId: course.id }}
+                      className="group relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-card p-4 shadow-soft transition-all hover:border-amber-500/60 hover:shadow-elevated"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-foreground shadow-elevated"
+                          style={{ background: course.color }}
+                        >
+                          <Play className="h-4 w-4 fill-current" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-display text-sm font-semibold text-foreground">
+                            {course.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{pct}%</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        {t("resume.inactiveDays", { n: days, plural: days !== 1 ? "s" : "" })}
+                      </div>
+                      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-amber-500 transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {visibleCategories.length > 0 && (
               <div className="mb-5 flex items-center gap-1.5 overflow-x-auto pb-1">
                 <button
@@ -362,7 +409,7 @@ function Home() {
                       : "flex flex-col gap-3"
                 }
               >
-                {filteredCourses.map((c) => (
+                {pagedCourses.map((c) => (
                   <CourseCard
                     key={c.id}
                     course={c}
@@ -379,6 +426,9 @@ function Home() {
                   </p>
                 )}
               </div>
+            )}
+            {!loading && (
+              <Pager page={safePage} totalPages={totalPages} onChange={setPage} />
             )}
           </>
         )}
