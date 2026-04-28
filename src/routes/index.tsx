@@ -17,6 +17,7 @@ import { usePref } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { useI18n, relativeTime, plural } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
+import { Pager } from "@/components/Pager";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -34,6 +35,11 @@ export const Route = createFileRoute("/")({
 
 type HomeSort = "recent" | "newest" | "name" | "favorites";
 
+const PAGE_SIZE = 12;
+const RESUME_INACTIVITY_DAYS = 15;
+const RESUME_MAX = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function Home() {
   const { t, lang } = useI18n();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -48,6 +54,7 @@ function Home() {
   const [manageCats, setManageCats] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
+  const [page, setPage] = useState(1);
 
   /**
    * Reload courses + files. When `silent` is true (used by background sync),
@@ -140,6 +147,39 @@ function Home() {
     }
     return sorted;
   }, [courses, categoryFilter, favoritesOnly, sort, lang]);
+
+  // Reset to first page whenever filters change.
+  useEffect(() => { setPage(1); }, [categoryFilter, favoritesOnly, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedCourses = useMemo(
+    () => filteredCourses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredCourses, safePage],
+  );
+
+  /**
+   * "Retome seu foco" — courses started (1–99% progress) where the user
+   * hasn't opened them in more than RESUME_INACTIVITY_DAYS days.
+   */
+  const resumeCourses = useMemo(() => {
+    const now = Date.now();
+    const items: { course: Course; days: number; pct: number }[] = [];
+    for (const c of courses) {
+      const files = filesByCourse[c.id] ?? [];
+      if (files.length === 0) continue;
+      const watched = files.filter((f) => f.watched).length;
+      const pct = Math.round((watched / files.length) * 100);
+      if (pct < 1 || pct > 99) continue;
+      const last = c.lastAccessedAt ?? c.updatedAt ?? c.createdAt ?? 0;
+      if (!last) continue;
+      const days = Math.floor((now - last) / DAY_MS);
+      if (days <= RESUME_INACTIVITY_DAYS) continue;
+      items.push({ course: c, days, pct });
+    }
+    items.sort((a, b) => b.days - a.days);
+    return items.slice(0, RESUME_MAX);
+  }, [courses, filesByCourse]);
 
   const sortLabel = useMemo(() => {
     if (sort === "name") return t("home.sortName");
