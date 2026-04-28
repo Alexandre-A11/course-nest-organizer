@@ -338,7 +338,7 @@ const MIME = {
   pdf: "application/pdf",
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif",
   svg: "image/svg+xml", bmp: "image/bmp",
-  txt: "text/plain", md: "text/markdown", html: "text/html", json: "application/json", csv: "text/csv",
+  txt: "text/plain; charset=utf-8", md: "text/markdown; charset=utf-8", html: "text/html; charset=utf-8", json: "application/json; charset=utf-8", csv: "text/csv; charset=utf-8",
 };
 function mimeFor(name) {
   const ext = name.toLowerCase().split(".").pop() || "";
