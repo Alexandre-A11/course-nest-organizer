@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Pager } from "@/components/Pager";
+
+const PAGE_SIZE = 12;
 
 export const Route = createFileRoute("/notes")({
   component: NotesPage,
@@ -83,6 +86,8 @@ function NotesPage() {
   const [query, setQuery] = useState("");
   const [courseId, setCourseId] = useState<string>("__all");
   const [language, setLanguage] = useState<string>("__all");
+  const [notesPage, setNotesPage] = useState(1);
+  const [snapsPage, setSnapsPage] = useState(1);
 
   // ---------- Delete handlers (with Undo toasts) ----------
 
@@ -207,6 +212,22 @@ function NotesPage() {
       );
     });
   }, [snaps, query, courseId, language]);
+
+  // Reset pages when filters change.
+  useEffect(() => { setNotesPage(1); setSnapsPage(1); }, [query, courseId, language, tab]);
+
+  const notesTotalPages = Math.max(1, Math.ceil(filteredNotes.length / PAGE_SIZE));
+  const snapsTotalPages = Math.max(1, Math.ceil(filteredSnaps.length / PAGE_SIZE));
+  const safeNotesPage = Math.min(notesPage, notesTotalPages);
+  const safeSnapsPage = Math.min(snapsPage, snapsTotalPages);
+  const pagedNotes = useMemo(
+    () => filteredNotes.slice((safeNotesPage - 1) * PAGE_SIZE, safeNotesPage * PAGE_SIZE),
+    [filteredNotes, safeNotesPage],
+  );
+  const pagedSnaps = useMemo(
+    () => filteredSnaps.slice((safeSnapsPage - 1) * PAGE_SIZE, safeSnapsPage * PAGE_SIZE),
+    [filteredSnaps, safeSnapsPage],
+  );
 
   const showNotes = tab === "all" || tab === "notes";
   const showSnaps = tab === "all" || tab === "snapshots";
