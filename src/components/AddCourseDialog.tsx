@@ -291,7 +291,7 @@ export function AddCourseDialog({ onAdded }: Props) {
                   <div
                     key={f.path}
                     className={cn(
-                      "flex items-center gap-1 border-b border-border/50 px-2 py-1.5 transition-colors last:border-b-0",
+                      "flex min-w-0 items-center gap-1 border-b border-border/50 px-2 py-1.5 transition-colors last:border-b-0",
                       remoteFolder === f.path && "bg-primary-soft/60",
                     )}
                   >
@@ -299,7 +299,7 @@ export function AddCourseDialog({ onAdded }: Props) {
                       type="button"
                       onClick={() => pickRemoteFolder(f)}
                       className={cn(
-                        "flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-primary-soft/40",
+                        "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors hover:bg-primary-soft/40",
                         remoteFolder === f.path && "text-primary",
                       )}
                       title={t("add.remotePickFolder")}
