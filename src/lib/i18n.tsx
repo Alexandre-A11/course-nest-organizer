@@ -375,6 +375,17 @@ const PT: Dict = {
   "home.favoriteAdd": "Marcar como favorito",
   "home.favoriteRemove": "Desfavoritar",
   "home.favoritesOnly": "Só favoritos",
+
+  // Pagination
+  "pager.prev": "Anterior",
+  "pager.next": "Próxima",
+  "pager.page": "Página {current} de {total}",
+
+  // Resume focus
+  "resume.title": "Retome seu foco",
+  "resume.subtitle": "Cursos iniciados que você não acessa há algum tempo.",
+  "resume.inactiveDays": "Inativo há {n} dia{plural}",
+  "resume.cta": "Retomar",
 };
 
 const EN: Dict = {
@@ -727,6 +738,17 @@ const EN: Dict = {
   "home.favoriteAdd": "Mark as favorite",
   "home.favoriteRemove": "Unfavorite",
   "home.favoritesOnly": "Favorites only",
+
+  // Pagination
+  "pager.prev": "Previous",
+  "pager.next": "Next",
+  "pager.page": "Page {current} of {total}",
+
+  // Resume focus
+  "resume.title": "Get back on track",
+  "resume.subtitle": "Courses you started but haven't opened in a while.",
+  "resume.inactiveDays": "Inactive for {n} day{plural}",
+  "resume.cta": "Resume",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };
