@@ -480,9 +480,9 @@ function EmptyState({ onAdded }: { onAdded: () => void }) {
         <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-hero text-primary-foreground shadow-elevated">
           <GraduationCap className="h-7 w-7" strokeWidth={2.2} />
         </div>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        <h1 className="font-serif text-5xl font-normal leading-[1.05] text-foreground sm:text-6xl">
           {t("empty.title")}<br />
-          <span className="bg-gradient-hero bg-clip-text text-transparent">{t("empty.titleAccent")}</span>
+          <span className="italic bg-gradient-hero bg-clip-text text-transparent">{t("empty.titleAccent")}</span>
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
           {t("empty.subtitle")}
