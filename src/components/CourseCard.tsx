@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
 import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play, Star } from "lucide-react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -40,10 +39,10 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
       <Link
         to="/course/$courseId"
         params={{ courseId: course.id }}
-        className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated"
+        className="group flex items-center gap-3 border-b border-border/40 px-2 py-2.5 transition-colors hover:bg-muted/40"
       >
         <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-white shadow-soft"
+          className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md text-white"
           style={course.banner
             ? undefined
             : { background: `linear-gradient(135deg, ${course.color} 0%, ${course.color}aa 100%)` }}
@@ -51,42 +50,34 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
           {course.banner ? (
             <img src={course.banner} alt="" className="h-full w-full object-cover" />
           ) : CatIcon ? (
-            <CatIcon className="h-6 w-6" strokeWidth={1.8} />
+            <CatIcon className="h-4 w-4" strokeWidth={1.8} />
           ) : (
-            <Folder className="h-6 w-6" strokeWidth={1.8} />
+            <Folder className="h-4 w-4" strokeWidth={1.8} />
           )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <FavStar isFav={isFav} title={favTitle} onClick={handleFavClick} />
+            <h3 className="truncate text-sm font-medium text-foreground">{course.name}</h3>
             {category && (
-              <span title={category.name} className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted", category.color)}>
-                <category.icon className="h-3 w-3" />
+              <span className="shrink-0 rounded-sm border border-border/60 px-1.5 py-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {category.name}
               </span>
             )}
-            <h3 className="truncate font-display text-base font-semibold text-foreground">{course.name}</h3>
-            {course.description && (
-              <span className="truncate text-xs text-muted-foreground">— {course.description}</span>
-            )}
-          </div>
-          <div className="mt-1 flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><PlayCircle className="h-3 w-3" /> {videos.length}</span>
-            <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> {pdfs.length}</span>
-            <span>•</span>
-            <span>{files.length} {t("card.files", { plural: plural(files.length, lang) })}</span>
           </div>
         </div>
-        <div className="hidden w-44 shrink-0 sm:block">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">{t("card.progress")}</span>
-            <span className="font-display font-semibold text-foreground">{progress}%</span>
+        <div className="hidden items-center gap-3 font-mono text-[11px] tabular-nums text-muted-foreground sm:flex">
+          <span className="inline-flex items-center gap-1"><PlayCircle className="h-3 w-3" />{videos.length}</span>
+          <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" />{pdfs.length}</span>
+        </div>
+        <div className="hidden w-40 shrink-0 items-center gap-2 sm:flex">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-border/60">
+            <div className="h-full bg-foreground/70 transition-all" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-secondary">
-            <div className="h-full rounded-full bg-gradient-hero transition-all" style={{ width: `${progress}%` }} />
-          </div>
+          <span className="w-9 text-right font-mono text-[11px] tabular-nums text-muted-foreground">{progress}%</span>
         </div>
         <RowActions onDelete={onDelete} onEdit={onEdit} />
-        <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
+        <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:block" />
       </Link>
     );
   }
@@ -130,20 +121,12 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
     );
   }
 
-  // grid (default)
+  // grid
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 26 }}
-      whileHover={{ y: -3 }}
-      className="break-inside-avoid"
-    >
     <Link
       to="/course/$courseId"
       params={{ courseId: course.id }}
-      className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/60 bg-card shadow-soft transition-shadow duration-500 ease-out hover:border-border hover:shadow-elevated"
+      className="group relative flex flex-col overflow-hidden rounded-md border border-border/60 bg-card transition-colors hover:border-border"
     >
       <div
         className="relative h-32 overflow-hidden"
@@ -214,39 +197,36 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
 
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <h3 className="font-serif text-2xl font-normal leading-tight text-foreground line-clamp-2">
+          <h3 className="text-base font-semibold leading-tight text-foreground line-clamp-2">
             {course.name}
           </h3>
           {course.description && (
-            <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{course.description}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 font-mono text-[11px] tabular-nums text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <PlayCircle className="h-3.5 w-3.5" />
-            {videos.length} {t("card.videos", { plural: plural(videos.length, lang) })}
+            {videos.length}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" />
-            {pdfs.length} {t("card.pdfs", { plural: plural(pdfs.length, lang) })}
+            {pdfs.length}
           </span>
         </div>
 
         <div className="mt-auto space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-muted-foreground">{t("card.progress")}</span>
-            <span className="font-display font-semibold text-foreground">{progress}%</span>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground">{t("card.progress")}</span>
+            <span className="font-mono tabular-nums text-foreground">{progress}%</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-            <div
-              className="h-full rounded-full bg-gradient-hero transition-all"
-              style={{ width: `${progress}%` }}
-            />
+          <div className="h-1 overflow-hidden rounded-full bg-border/60">
+            <div className="h-full bg-foreground/70 transition-all" style={{ width: `${progress}%` }} />
           </div>
           {hasContinue && (
             <div className="pt-1">
-              <span className="inline-flex items-center gap-1 rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <span className="inline-flex items-center gap-1 rounded-sm bg-primary-soft px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
                 <Play className="h-2.5 w-2.5 fill-current" /> {t("card.continue")}
               </span>
             </div>
@@ -254,7 +234,6 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
         </div>
       </div>
     </Link>
-    </motion.div>
   );
 }
 
