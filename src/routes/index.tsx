@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useI18n, relativeTime, plural } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { Pager } from "@/components/Pager";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -400,32 +401,37 @@ function Home() {
                 ))}
               </div>
             ) : (
-              <div
-                className={
-                  view === "grid"
-                    ? "grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-                    : view === "compact"
-                      ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                      : "flex flex-col gap-3"
-                }
-              >
-                {pagedCourses.map((c) => (
-                  <CourseCard
-                    key={c.id}
-                    course={c}
-                    files={filesByCourse[c.id] ?? []}
-                    onDelete={() => setConfirmDelete(c)}
-                    onEdit={() => setEditing(c)}
-                    onToggleFavorite={() => void handleToggleFavorite(c)}
-                    view={view}
-                  />
-                ))}
-                {filteredCourses.length === 0 && (
-                  <p className="col-span-full py-12 text-center text-sm text-muted-foreground">
-                    Nenhum curso nesta categoria.
-                  </p>
-                )}
-              </div>
+              <LayoutGroup>
+                <motion.div
+                  layout
+                  className={
+                    view === "grid"
+                      ? "gap-7 [column-fill:_balance] sm:columns-2 lg:columns-3 [&>*]:mb-7"
+                      : view === "compact"
+                        ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                        : "flex flex-col gap-3"
+                  }
+                >
+                  <AnimatePresence mode="popLayout">
+                    {pagedCourses.map((c) => (
+                      <CourseCard
+                        key={c.id}
+                        course={c}
+                        files={filesByCourse[c.id] ?? []}
+                        onDelete={() => setConfirmDelete(c)}
+                        onEdit={() => setEditing(c)}
+                        onToggleFavorite={() => void handleToggleFavorite(c)}
+                        view={view}
+                      />
+                    ))}
+                  </AnimatePresence>
+                  {filteredCourses.length === 0 && (
+                    <p className="col-span-full py-12 text-center text-sm text-muted-foreground">
+                      Nenhum curso nesta categoria.
+                    </p>
+                  )}
+                </motion.div>
+              </LayoutGroup>
             )}
             {!loading && (
               <Pager page={safePage} totalPages={totalPages} onChange={setPage} />
@@ -474,9 +480,9 @@ function EmptyState({ onAdded }: { onAdded: () => void }) {
         <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-hero text-primary-foreground shadow-elevated">
           <GraduationCap className="h-7 w-7" strokeWidth={2.2} />
         </div>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+        <h1 className="font-serif text-5xl font-normal leading-[1.05] text-foreground sm:text-6xl">
           {t("empty.title")}<br />
-          <span className="bg-gradient-hero bg-clip-text text-transparent">{t("empty.titleAccent")}</span>
+          <span className="italic bg-gradient-hero bg-clip-text text-transparent">{t("empty.titleAccent")}</span>
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
           {t("empty.subtitle")}

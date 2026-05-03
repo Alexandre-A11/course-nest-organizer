@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
 import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play, Star } from "lucide-react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -131,13 +132,21 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
 
   // grid (default)
   return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 260, damping: 26 }}
+      whileHover={{ y: -3 }}
+      className="break-inside-avoid"
+    >
     <Link
       to="/course/$courseId"
       params={{ courseId: course.id }}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-elevated"
+      className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/60 bg-card shadow-soft transition-shadow duration-500 ease-out hover:border-border hover:shadow-elevated"
     >
       <div
-        className="relative h-28 overflow-hidden"
+        className="relative h-32 overflow-hidden"
         style={course.banner ? undefined : {
           background: `linear-gradient(135deg, ${course.color} 0%, ${course.color}aa 60%, ${course.color}55 100%)`,
         }}
@@ -205,11 +214,11 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
 
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <h3 className="font-display text-lg font-semibold tracking-tight text-foreground line-clamp-1">
+          <h3 className="font-serif text-2xl font-normal leading-tight text-foreground line-clamp-2">
             {course.name}
           </h3>
           {course.description && (
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">{course.description}</p>
           )}
         </div>
 
@@ -245,6 +254,7 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
         </div>
       </div>
     </Link>
+    </motion.div>
   );
 }
 

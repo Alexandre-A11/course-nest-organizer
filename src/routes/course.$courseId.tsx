@@ -471,7 +471,7 @@ function CoursePage() {
                   const Icon = cat.icon;
                   return <Icon className={`h-4 w-4 shrink-0 ${cat.color}`} aria-label={cat.name} />;
                 })()}
-                <h1 className="truncate font-display text-base font-semibold tracking-tight text-foreground sm:text-xl">{course?.name}</h1>
+                <h1 className="truncate font-serif text-xl font-normal tracking-tight text-foreground sm:text-2xl">{course?.name}</h1>
                 <button
                   onClick={() => setEditing(true)}
                   title={t("course.editTitle")}
