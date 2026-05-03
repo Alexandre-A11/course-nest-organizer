@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { useI18n, relativeTime, plural } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
 import { Pager } from "@/components/Pager";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -49,7 +49,7 @@ function Home() {
   const [confirmDelete, setConfirmDelete] = useState<Course | null>(null);
   const [editing, setEditing] = useState<Course | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [view, setView] = usePref<CourseViewMode>("home.view", "grid");
+  const [view, setView] = usePref<CourseViewMode>("home.view", "list");
   const [sort, setSort] = usePref<HomeSort>("home.sort", "recent");
   const [favoritesOnly, setFavoritesOnly] = usePref<"on" | "off">("home.favoritesOnly", "off");
   const [manageCats, setManageCats] = useState(false);
@@ -206,10 +206,10 @@ function Home() {
           <>
             <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
+                <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
                   {t("home.title")}
                 </h1>
-                <p className="mt-1.5 text-sm text-muted-foreground">
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
                   {t("home.countOf", { shown: filteredCourses.length, total: courses.length, plural: plural(courses.length, lang) })}
                   {categoryFilter && getCategory(categoryFilter) ? ` ${t("home.in")} ${getCategory(categoryFilter)!.name}` : ""}
                 </p>
@@ -217,12 +217,12 @@ function Home() {
               <div className="flex flex-wrap items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl" title={t("home.sortLabel")}>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-md" title={t("home.sortLabel")}>
                       <ArrowDownUp className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">{sortLabel}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-xl">
+                  <DropdownMenuContent align="end" className="rounded-md">
                     <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground">
                       {t("home.sortLabel")}
                     </DropdownMenuLabel>
@@ -253,19 +253,19 @@ function Home() {
                   type="single"
                   value={view}
                   onValueChange={(v) => v && setView(v as CourseViewMode)}
-                  className="rounded-xl border border-border bg-card p-0.5"
+                  className="rounded-md border border-border bg-card p-0.5"
                 >
-                  <ToggleGroupItem value="grid" size="sm" className="h-8 w-8 rounded-lg p-0" title={t("home.viewGrid")}>
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="list" size="sm" className="h-8 w-8 rounded-lg p-0" title={t("home.viewList")}>
+                  <ToggleGroupItem value="list" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewList")}>
                     <List className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
-                  <ToggleGroupItem value="compact" size="sm" className="h-8 w-8 rounded-lg p-0" title={t("home.viewCompact")}>
+                  <ToggleGroupItem value="grid" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewGrid")}>
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="compact" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewCompact")}>
                     <Rows3 className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
                 </ToggleGroup>
-                <Button variant="outline" size="sm" onClick={() => setManageCats(true)} className="h-9 gap-1.5 rounded-xl" title={t("home.categories")}>
+                <Button variant="ghost" size="sm" onClick={() => setManageCats(true)} className="h-8 gap-1.5 rounded-md" title={t("home.categories")}>
                   <Settings2 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{t("home.categories")}</span>
                 </Button>
@@ -395,9 +395,9 @@ function Home() {
             )}
 
             {loading ? (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {[0,1,2].map((i) => (
-                  <div key={i} className="h-64 animate-pulse rounded-2xl bg-secondary" />
+              <div className="flex flex-col">
+                {[0,1,2,3,4].map((i) => (
+                  <div key={i} className="h-12 animate-pulse border-b border-border/40" />
                 ))}
               </div>
             ) : (
@@ -406,10 +406,10 @@ function Home() {
                   layout
                   className={
                     view === "grid"
-                      ? "gap-7 [column-fill:_balance] sm:columns-2 lg:columns-3 [&>*]:mb-7"
+                      ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                       : view === "compact"
-                        ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                        : "flex flex-col gap-3"
+                        ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                        : "flex flex-col border-t border-border/40"
                   }
                 >
                   <AnimatePresence mode="popLayout">
