@@ -541,6 +541,30 @@ function Feature({ icon: Icon, title, desc }: { icon: typeof Sparkles; title: st
   );
 }
 
+function AddCourseTile({ onAdded }: { onAdded: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-[260px] items-center justify-center rounded-3xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center transition-colors hover:border-primary/40 hover:bg-card/60">
+      <div className="flex flex-col items-center gap-3">
+        <AddCourseDialog
+          onAdded={onAdded}
+          trigger={
+            <button className="flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+              <Plus className="h-5 w-5" />
+            </button>
+          }
+        />
+        <div>
+          <p className="text-sm font-semibold text-foreground">{t("home.addTitle")}</p>
+          <p className="mt-1 max-w-[200px] text-xs leading-relaxed text-muted-foreground">
+            {t("home.addSubtitle")}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- Cheap structural equality so silent sync refreshes don't churn state ----
 
 function courseFingerprint(c: Course): string {
