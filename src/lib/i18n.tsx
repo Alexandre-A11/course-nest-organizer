@@ -30,6 +30,9 @@ const PT: Dict = {
   "home.noneInCategory": "Nenhum curso nesta categoria.",
   "home.continueTitle": "Continuar de onde parou",
   "home.continueAction": "Continuar",
+  "home.searchPh": "Buscar cursos…",
+  "home.addTitle": "Adicionar novo curso",
+  "home.addSubtitle": "Importe um novo curso para organizar seus estudos.",
   "home.lastSeen": "Última vez {when}",
   "home.missingFolder": "{count} curso{plural} {verb} que você reabra a pasta",
   "home.missingHint": "Clique no curso para reselecionar a pasta.",
@@ -71,6 +74,9 @@ const PT: Dict = {
   "card.markDoc": "Marcar como lido",
   "card.watchedOther": "Concluído",
   "card.markOther": "Marcar concluído",
+  "card.action.start": "Começar",
+  "card.action.continue": "Continuar",
+  "card.action.review": "Revisar",
 
   // Course page
   "course.sync": "Sincronizar",
@@ -385,6 +391,14 @@ const PT: Dict = {
   "resume.title": "Retome seu foco",
   "resume.subtitle": "Cursos iniciados que você não acessa há algum tempo.",
   "resume.inactiveDays": "Inativo há {n} dia{plural}",
+
+  // Home sidebar
+  "sidebar.recentNotes": "Notas Recentes",
+  "sidebar.allNotes": "Ver todas",
+  "sidebar.noNotes": "Suas anotações aparecerão aqui.",
+  "sidebar.openNotebook": "Ver caderno",
+  "sidebar.streakTitle": "Ofensiva de {n} dias",
+  "sidebar.streakSubtitle": "Continue estudando diariamente para manter sua ofensiva ativa.",
   "resume.cta": "Retomar",
 };
 
@@ -410,6 +424,9 @@ const EN: Dict = {
   "home.noneInCategory": "No courses in this category.",
   "home.continueTitle": "Continue where you left off",
   "home.continueAction": "Continue",
+  "home.searchPh": "Search courses…",
+  "home.addTitle": "Add new course",
+  "home.addSubtitle": "Import a new course to organize your studies.",
   "home.lastSeen": "Last opened {when}",
   "home.missingFolder": "{count} course{plural} {verb} you to reopen the folder",
   "home.missingHint": "Click the course to reselect the folder.",
@@ -448,6 +465,9 @@ const EN: Dict = {
   "card.markDoc": "Mark as read",
   "card.watchedOther": "Completed",
   "card.markOther": "Mark complete",
+  "card.action.start": "Start",
+  "card.action.continue": "Continue",
+  "card.action.review": "Review",
 
   "course.sync": "Sync",
   "course.search": "Search file...",
@@ -748,6 +768,14 @@ const EN: Dict = {
   "resume.title": "Get back on track",
   "resume.subtitle": "Courses you started but haven't opened in a while.",
   "resume.inactiveDays": "Inactive for {n} day{plural}",
+
+  // Home sidebar
+  "sidebar.recentNotes": "Recent Notes",
+  "sidebar.allNotes": "See all",
+  "sidebar.noNotes": "Your notes will appear here.",
+  "sidebar.openNotebook": "Open notebook",
+  "sidebar.streakTitle": "{n}-day streak",
+  "sidebar.streakSubtitle": "Keep studying daily to maintain your streak.",
   "resume.cta": "Resume",
 };
 

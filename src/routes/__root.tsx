@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { I18nProvider } from "@/lib/i18n";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { purgeLegacyLocalCourses } from "@/lib/db";
+import { AuroraBackground } from "@/components/AuroraBackground";
 
 function NotFoundComponent() {
   return (
@@ -85,6 +86,7 @@ function RootComponent() {
     <ThemeProvider>
       <I18nProvider>
         <TooltipProvider delayDuration={200}>
+          <AuroraBackground />
           <Outlet />
           <Toaster position="top-right" />
         </TooltipProvider>

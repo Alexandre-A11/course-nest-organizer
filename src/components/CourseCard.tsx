@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play, Star } from "lucide-react";
+import { Folder, PlayCircle, FileText, MoreVertical, Trash2, ChevronRight, Pencil, Play, Star, RotateCcw } from "lucide-react";
 import type { Course, CourseFileMeta } from "@/lib/db";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -126,10 +126,10 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
     <Link
       to="/course/$courseId"
       params={{ courseId: course.id }}
-      className="group relative flex flex-col overflow-hidden rounded-md border border-border/60 bg-card transition-colors hover:border-border"
+      className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/40 bg-card/90 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md"
     >
       <div
-        className="relative h-32 overflow-hidden"
+        className="relative h-36 overflow-hidden"
         style={course.banner ? undefined : {
           background: `linear-gradient(135deg, ${course.color} 0%, ${course.color}aa 60%, ${course.color}55 100%)`,
         }}
@@ -197,7 +197,7 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
 
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <h3 className="text-base font-semibold leading-tight text-foreground line-clamp-2">
+          <h3 className="text-lg font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
             {course.name}
           </h3>
           {course.description && (
@@ -216,21 +216,41 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
           </span>
         </div>
 
-        <div className="mt-auto space-y-1.5">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-muted-foreground">{t("card.progress")}</span>
-            <span className="font-mono tabular-nums text-foreground">{progress}%</span>
+        <div className="mt-auto space-y-2">
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-wider">
+            <span className="font-semibold text-muted-foreground">{t("card.progress")}</span>
+            <span className={cn(
+              "font-mono tabular-nums",
+              progress === 100 ? "text-emerald-500" : progress > 0 ? "text-primary" : "text-muted-foreground",
+            )}>{progress}%</span>
           </div>
-          <div className="h-1 overflow-hidden rounded-full bg-border/60">
-            <div className="h-full bg-foreground/70 transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-1.5 overflow-hidden rounded-full bg-secondary/80">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                progress === 100 ? "bg-emerald-500" : "bg-primary",
+              )}
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          {hasContinue && (
-            <div className="pt-1">
-              <span className="inline-flex items-center gap-1 rounded-sm bg-primary-soft px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
-                <Play className="h-2.5 w-2.5 fill-current" /> {t("card.continue")}
-              </span>
+          <div className="pt-2">
+            <div className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors",
+              progress === 100
+                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400"
+                : progress > 0
+                  ? "border-primary/30 bg-primary-soft/40 text-primary"
+                  : "border-border bg-background/40 text-foreground hover:bg-secondary",
+            )}>
+              {progress === 100 ? (
+                <><RotateCcw className="h-3.5 w-3.5" /> {t("card.action.review")}</>
+              ) : progress > 0 || hasContinue ? (
+                <><Play className="h-3.5 w-3.5 fill-current" /> {t("card.action.continue")}</>
+              ) : (
+                <><Play className="h-3.5 w-3.5 fill-current" /> {t("card.action.start")}</>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </Link>

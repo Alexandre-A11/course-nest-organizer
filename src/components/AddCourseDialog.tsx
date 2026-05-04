@@ -27,9 +27,11 @@ const MAX_BANNER_BYTES = 2 * 1024 * 1024;
 
 interface Props {
   onAdded: () => void;
+  /** Optional custom trigger element. Defaults to the "Adicionar curso" button. */
+  trigger?: React.ReactNode;
 }
 
-export function AddCourseDialog({ onAdded }: Props) {
+export function AddCourseDialog({ onAdded, trigger }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
@@ -170,10 +172,12 @@ export function AddCourseDialog({ onAdded }: Props) {
     <>
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>
-        <Button size="lg" className="gap-2 rounded-xl shadow-elevated">
-          <FolderPlus className="h-4 w-4" />
-          {t("btn.add")}
-        </Button>
+        {trigger ?? (
+          <Button size="lg" className="gap-2 rounded-xl shadow-elevated">
+            <FolderPlus className="h-4 w-4" />
+            {t("btn.add")}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[560px] rounded-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
