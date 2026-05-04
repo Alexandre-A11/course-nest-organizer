@@ -28,13 +28,18 @@ export function CustomVideoPlayer({
     if (!isTs) return;
     const el = videoRef.current;
     if (!el) return;
-    let player: { destroy: () => void } | null = null;
+    type Player = {
+      attachMediaElement: (el: HTMLVideoElement) => void;
+      load: () => void;
+      destroy: () => void;
+    };
+    let player: Player | null = null;
     let cancelled = false;
     (async () => {
       const mod = await import("mpegts.js");
       const mpegts = mod.default;
       if (cancelled || !mpegts.getFeatureList().mseLivePlayback && !mpegts.isSupported()) return;
-      player = mpegts.createPlayer({ type: "mpegts", url: src, isLive: false });
+      player = mpegts.createPlayer({ type: "mpegts", url: src, isLive: false }) as unknown as Player;
       player.attachMediaElement(el);
       player.load();
     })();
