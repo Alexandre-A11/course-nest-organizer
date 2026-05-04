@@ -74,6 +74,9 @@ const PT: Dict = {
   "card.markDoc": "Marcar como lido",
   "card.watchedOther": "Concluído",
   "card.markOther": "Marcar concluído",
+  "card.action.start": "Começar",
+  "card.action.continue": "Continuar",
+  "card.action.review": "Revisar",
 
   // Course page
   "course.sync": "Sincronizar",
@@ -462,6 +465,9 @@ const EN: Dict = {
   "card.markDoc": "Mark as read",
   "card.watchedOther": "Completed",
   "card.markOther": "Mark complete",
+  "card.action.start": "Start",
+  "card.action.continue": "Continue",
+  "card.action.review": "Review",
 
   "course.sync": "Sync",
   "course.search": "Search file...",
