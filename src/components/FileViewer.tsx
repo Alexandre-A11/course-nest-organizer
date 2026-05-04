@@ -18,6 +18,7 @@ import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
 import { SnapshotsPanel } from "@/components/notes/SnapshotsPanel";
 import { TagEditor } from "@/components/notes/TagEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CustomVideoPlayer } from "@/components/CustomVideoPlayer";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
 import { useI18n } from "@/lib/i18n";
@@ -645,17 +646,16 @@ function ViewerContent({
         "flex h-full items-center justify-center bg-black",
         fillStage ? "p-0" : "p-0 sm:p-6",
       )}>
-        <video
-          key={url}
-          ref={(el) => { mediaRef.current = el; }}
+        <CustomVideoPlayer
           src={url}
-          controls
+          fileName={file.name}
+          registerRef={(el) => { mediaRef.current = el; }}
           className={cn(
             "max-h-full max-w-full",
             fillStage ? "h-full w-full" : "rounded-lg shadow-elevated",
           )}
           onEnded={onVideoEnded}
-          onLoadedMetadata={(e) => handleLoaded(e.currentTarget)}
+          onLoadedMetadata={(e) => handleLoaded(e.currentTarget as HTMLVideoElement)}
           onTimeUpdate={onTU}
           onPause={onP}
         />
