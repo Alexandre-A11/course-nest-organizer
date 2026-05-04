@@ -385,6 +385,14 @@ const PT: Dict = {
   "resume.title": "Retome seu foco",
   "resume.subtitle": "Cursos iniciados que você não acessa há algum tempo.",
   "resume.inactiveDays": "Inativo há {n} dia{plural}",
+
+  // Home sidebar
+  "sidebar.recentNotes": "Notas Recentes",
+  "sidebar.allNotes": "Ver todas",
+  "sidebar.noNotes": "Suas anotações aparecerão aqui.",
+  "sidebar.openNotebook": "Ver caderno",
+  "sidebar.streakTitle": "Ofensiva de {n} dias",
+  "sidebar.streakSubtitle": "Continue estudando diariamente para manter sua ofensiva ativa.",
   "resume.cta": "Retomar",
 };
 
@@ -748,6 +756,14 @@ const EN: Dict = {
   "resume.title": "Get back on track",
   "resume.subtitle": "Courses you started but haven't opened in a while.",
   "resume.inactiveDays": "Inactive for {n} day{plural}",
+
+  // Home sidebar
+  "sidebar.recentNotes": "Recent Notes",
+  "sidebar.allNotes": "See all",
+  "sidebar.noNotes": "Your notes will appear here.",
+  "sidebar.openNotebook": "Open notebook",
+  "sidebar.streakTitle": "{n}-day streak",
+  "sidebar.streakSubtitle": "Keep studying daily to maintain your streak.",
   "resume.cta": "Resume",
 };
 
