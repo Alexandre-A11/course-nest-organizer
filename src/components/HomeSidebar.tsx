@@ -140,16 +140,22 @@ export function HomeSidebar({ courses, filesByCourse }: Props) {
       </section>
 
       {/* Ofensiva (streak) */}
-      <section className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-rose-100 via-amber-100 to-yellow-100 p-6 shadow-sm dark:from-rose-950/40 dark:via-amber-950/30 dark:to-yellow-950/30">
+      <section
+        className="relative overflow-hidden rounded-3xl border border-rose-200/60 p-6 shadow-sm dark:border-rose-900/40"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.95 0.05 20 / 0.85) 0%, oklch(0.95 0.06 70 / 0.85) 50%, oklch(0.96 0.06 95 / 0.85) 100%)",
+        }}
+      >
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/60 text-rose-500 shadow-sm dark:bg-white/10">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-rose-500 shadow-sm">
             <Flame className="h-5 w-5 fill-current" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold tracking-tight text-foreground">
+            <h3 className="text-base font-semibold tracking-tight text-rose-950">
               {t("sidebar.streakTitle", { n: streak })}
             </h3>
-            <p className="mt-1 text-xs leading-relaxed text-foreground/70">
+            <p className="mt-1 text-xs leading-relaxed text-rose-950/70">
               {t("sidebar.streakSubtitle")}
             </p>
           </div>
