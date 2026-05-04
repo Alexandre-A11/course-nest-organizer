@@ -57,6 +57,7 @@ function Home() {
   const [restoring, setRestoring] = useState(false);
   const cats = useCategories();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
   /**
    * Reload courses + files. When `silent` is true (used by background sync),
@@ -150,14 +151,22 @@ function Home() {
     return sorted;
   }, [courses, categoryFilter, favoritesOnly, sort, lang]);
 
-  // Reset to first page whenever filters change.
-  useEffect(() => { setPage(1); }, [categoryFilter, favoritesOnly, sort]);
+  const searchedCourses = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return filteredCourses;
+    return filteredCourses.filter(
+      (c) => c.name.toLowerCase().includes(q) || (c.description ?? "").toLowerCase().includes(q),
+    );
+  }, [filteredCourses, search]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / PAGE_SIZE));
+  // Reset to first page whenever filters change.
+  useEffect(() => { setPage(1); }, [categoryFilter, favoritesOnly, sort, search]);
+
+  const totalPages = Math.max(1, Math.ceil(searchedCourses.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedCourses = useMemo(
-    () => filteredCourses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
-    [filteredCourses, safePage],
+    () => searchedCourses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [searchedCourses, safePage],
   );
 
   /**
