@@ -155,6 +155,12 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
           <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="rounded-xl resize-none" />
         </div>
 
+        {/* Author / school */}
+        <div className="space-y-2">
+          <Label htmlFor="edit-author">{t("field.author")}</Label>
+          <Input id="edit-author" value={author} onChange={(e) => setAuthor(e.target.value)} className="rounded-xl" />
+        </div>
+
         {/* Category */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
