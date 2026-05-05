@@ -360,6 +360,12 @@ export function AddCourseDialog({ onAdded, trigger }: Props) {
           <Textarea id="course-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("field.descPh")} rows={2} className="rounded-xl resize-none" />
         </div>
 
+        {/* Author / school */}
+        <div className="space-y-2">
+          <Label htmlFor="course-author">{t("field.author")}</Label>
+          <Input id="course-author" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder={t("field.authorPh")} className="rounded-xl" />
+        </div>
+
         {/* Category */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
