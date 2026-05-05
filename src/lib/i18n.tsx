@@ -400,6 +400,12 @@ const PT: Dict = {
   "sidebar.streakTitle": "Ofensiva de {n} dias",
   "sidebar.streakSubtitle": "Continue estudando diariamente para manter sua ofensiva ativa.",
   "resume.cta": "Retomar",
+  "sidebar.tabNotes": "Notas",
+  "sidebar.tabCodes": "Códigos",
+  "sidebar.recentCodes": "Códigos Recentes",
+  "sidebar.noCodes": "Seus snapshots aparecerão aqui.",
+  "field.author": "Autor / Escola",
+  "field.authorPh": "Ex.: Rocketseat, Alura, John Doe…",
 };
 
 const EN: Dict = {
