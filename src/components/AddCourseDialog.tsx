@@ -43,6 +43,7 @@ export function AddCourseDialog({ onAdded, trigger }: Props) {
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [author, setAuthor] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [color, setColor] = useState<string>(ACCENT_COLORS[0]);
   const [banner, setBanner] = useState<string | undefined>(undefined);
@@ -57,7 +58,7 @@ export function AddCourseDialog({ onAdded, trigger }: Props) {
   }, [open]);
 
   const reset = () => {
-    setName(""); setDescription(""); setCategory(undefined); setBanner(undefined);
+    setName(""); setDescription(""); setAuthor(""); setCategory(undefined); setBanner(undefined);
     setRemoteFolder(null); setRemoteFolderName(""); setRemoteFileCount(0);
     setRemoteParent("");
     setColor(ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]);
@@ -146,6 +147,7 @@ export function AddCourseDialog({ onAdded, trigger }: Props) {
       id,
       name: name.trim(),
       description: description.trim() || undefined,
+      author: author.trim() || undefined,
       createdAt: Date.now(),
       source: "remote",
       remoteFolder,
@@ -356,6 +358,12 @@ export function AddCourseDialog({ onAdded, trigger }: Props) {
         <div className="space-y-2">
           <Label htmlFor="course-desc">{t("field.desc")}</Label>
           <Textarea id="course-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("field.descPh")} rows={2} className="rounded-xl resize-none" />
+        </div>
+
+        {/* Author / school */}
+        <div className="space-y-2">
+          <Label htmlFor="course-author">{t("field.author")}</Label>
+          <Input id="course-author" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder={t("field.authorPh")} className="rounded-xl" />
         </div>
 
         {/* Category */}

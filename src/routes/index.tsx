@@ -215,16 +215,11 @@ function Home() {
         ) : (
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0">
-            <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  {t("home.title")}
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t("home.countOf", { shown: filteredCourses.length, total: courses.length, plural: plural(courses.length, lang) })}
-                  {categoryFilter && getCategory(categoryFilter) ? ` ${t("home.in")} ${getCategory(categoryFilter)!.name}` : ""}
-                </p>
-              </div>
+            <div className="mb-6 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
+                {t("home.countOf", { shown: filteredCourses.length, total: courses.length, plural: plural(courses.length, lang) })}
+                {categoryFilter && getCategory(categoryFilter) ? ` · ${getCategory(categoryFilter)!.name}` : ""}
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -233,7 +228,7 @@ function Home() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t("home.searchPh")}
-                    className="h-10 w-64 rounded-full border border-border/50 bg-card/70 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground/70 shadow-sm backdrop-blur focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-9 w-56 rounded-full border border-border/50 bg-card/70 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground/70 shadow-sm backdrop-blur focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
                 <DropdownMenu>
@@ -276,11 +271,11 @@ function Home() {
                   onValueChange={(v) => v && setView(v as CourseViewMode)}
                   className="hidden rounded-md border border-border bg-card p-0.5 sm:inline-flex"
                 >
-                  <ToggleGroupItem value="list" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewList")}>
-                    <List className="h-3.5 w-3.5" />
-                  </ToggleGroupItem>
                   <ToggleGroupItem value="grid" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewGrid")}>
                     <LayoutGrid className="h-3.5 w-3.5" />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="list" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewList")}>
+                    <List className="h-3.5 w-3.5" />
                   </ToggleGroupItem>
                   <ToggleGroupItem value="compact" size="sm" className="h-7 w-7 rounded-sm p-0" title={t("home.viewCompact")}>
                     <Rows3 className="h-3.5 w-3.5" />
@@ -290,7 +285,6 @@ function Home() {
                   <Settings2 className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">{t("home.categories")}</span>
                 </Button>
-                <AddCourseDialog onAdded={load} />
               </div>
             </div>
 
@@ -371,18 +365,7 @@ function Home() {
             )}
 
             {visibleCategories.length > 0 && (
-              <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">
-                <button
-                  onClick={() => setCategoryFilter(null)}
-                  className={cn(
-                    "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all",
-                    !categoryFilter
-                      ? "bg-card text-foreground shadow-sm"
-                      : "bg-secondary/60 text-muted-foreground hover:bg-secondary",
-                  )}
-                >
-                  {t("home.all")}
-                </button>
+              <div className="mb-6 flex items-center gap-1.5 overflow-x-auto pb-1">
                 {visibleCategories.map((cat) => {
                   const Icon = cat.icon;
                   const active = categoryFilter === cat.id;
@@ -392,13 +375,13 @@ function Home() {
                       onClick={() => setCategoryFilter(active ? null : cat.id)}
                       title={cat.name}
                       className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                        "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all",
                         active
                           ? "bg-card text-foreground shadow-sm"
                           : "bg-secondary/60 text-muted-foreground hover:bg-secondary",
                       )}
                     >
-                      <Icon className={cn("h-3.5 w-3.5", cat.color)} />
+                      <Icon className={cn("h-3 w-3", cat.color)} />
                       <span className="hidden sm:inline">{cat.name}</span>
                     </button>
                   );
@@ -406,10 +389,10 @@ function Home() {
                 {categoryFilter && (
                   <button
                     onClick={() => setCategoryFilter(null)}
-                    className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-xs text-muted-foreground hover:bg-secondary"
+                    className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:bg-secondary"
                     title={t("home.clearFilter")}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
@@ -544,7 +527,7 @@ function Feature({ icon: Icon, title, desc }: { icon: typeof Sparkles; title: st
 function AddCourseTile({ onAdded }: { onAdded: () => void }) {
   const { t } = useI18n();
   return (
-    <div className="flex min-h-[260px] items-center justify-center rounded-3xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center transition-colors hover:border-primary/40 hover:bg-card/60">
+    <div className="col-span-1 flex min-h-[200px] items-center justify-center rounded-2xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center transition-colors hover:border-primary/40 hover:bg-card/60 sm:col-span-2 xl:col-span-2">
       <div className="flex flex-col items-center gap-3">
         <AddCourseDialog
           onAdded={onAdded}

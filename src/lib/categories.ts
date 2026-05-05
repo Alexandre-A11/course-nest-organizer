@@ -2,6 +2,13 @@ import {
   Code, Languages, Music, Palette, Briefcase, FlaskConical, Brush, Sparkles,
   BookOpen, Camera, Dumbbell, Film, Gamepad2, Globe, Heart, Lightbulb,
   Rocket, Star, Trophy, Wrench,
+  Atom, Beaker, Binary, Brain, Calculator, ChartBar, ChefHat, Coffee,
+  Compass, Cpu, Database, Drama, Earth, Feather, Flame,
+  GitBranch, Hammer, Headphones, Image as ImageIcon, Layers, Leaf, Map,
+  MessageCircle, Mic, Monitor, Mountain, Newspaper, PenTool, Plane,
+  Radio, Scissors, Server, Shield, ShoppingBag, Smile, Speaker, Stethoscope,
+  Sun, Target, Telescope, Terminal, TreePine, TrendingUp, Tv, Type,
+  Umbrella, Video, Wand2, Watch, Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +38,12 @@ export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   Code, Languages, Music, Palette, Briefcase, FlaskConical, Brush, Sparkles,
   BookOpen, Camera, Dumbbell, Film, Gamepad2, Globe, Heart, Lightbulb,
   Rocket, Star, Trophy, Wrench,
+  Atom, Beaker, Binary, Brain, Calculator, ChartBar, ChefHat, Coffee,
+  Compass, Cpu, Database, Drama, Earth, Feather, Flame, GitBranch, Hammer,
+  Headphones, ImageIcon, Layers, Leaf, Map, MessageCircle, Mic, Monitor,
+  Mountain, Newspaper, PenTool, Plane, Radio, Scissors, Server, Shield,
+  ShoppingBag, Smile, Speaker, Stethoscope, Sun, Target, Telescope, Terminal,
+  TreePine, TrendingUp, Tv, Type, Umbrella, Video, Wand2, Watch, Zap,
 };
 
 export const CATEGORY_COLORS: { name: string; value: string }[] = [

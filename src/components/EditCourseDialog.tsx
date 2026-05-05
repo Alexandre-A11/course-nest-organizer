@@ -36,6 +36,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
   const { t } = useI18n();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [author, setAuthor] = useState("");
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [color, setColor] = useState<string>(ACCENT_COLORS[0]);
   const [banner, setBanner] = useState<string | undefined>(undefined);
@@ -52,6 +53,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
     if (!course) return;
     setName(course.name);
     setDescription(course.description ?? "");
+    setAuthor(course.author ?? "");
     setCategory(course.category);
     setColor(course.color);
     setBanner(course.banner);
@@ -80,6 +82,7 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
       ...course,
       name: name.trim(),
       description: description.trim() || undefined,
+      author: author.trim() || undefined,
       category: category || undefined,
       color,
       banner,
@@ -150,6 +153,12 @@ export function EditCourseDialog({ course, open, onOpenChange, onSaved }: Props)
         <div className="space-y-2">
           <Label htmlFor="edit-desc">{t("field.desc")}</Label>
           <Textarea id="edit-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="rounded-xl resize-none" />
+        </div>
+
+        {/* Author / school */}
+        <div className="space-y-2">
+          <Label htmlFor="edit-author">{t("field.author")}</Label>
+          <Input id="edit-author" value={author} onChange={(e) => setAuthor(e.target.value)} className="rounded-xl" />
         </div>
 
         {/* Category */}
