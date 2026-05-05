@@ -126,10 +126,10 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
     <Link
       to="/course/$courseId"
       params={{ courseId: course.id }}
-      className="group relative flex flex-col overflow-hidden rounded-3xl border border-border/40 bg-card/90 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/90 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-md"
     >
       <div
-        className="relative h-36 overflow-hidden"
+        className="relative h-28 overflow-hidden"
         style={course.banner ? undefined : {
           background: `linear-gradient(135deg, ${course.color} 0%, ${course.color}aa 60%, ${course.color}55 100%)`,
         }}
@@ -152,6 +152,11 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
         ) : null}
         {!course.banner && (
           <Folder className="absolute right-4 top-4 h-12 w-12 text-white/40" strokeWidth={1.5} />
+        )}
+        {course.author && (
+          <span className="absolute bottom-2 left-2 max-w-[70%] truncate rounded-md bg-black/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/85 backdrop-blur-sm">
+            {course.author}
+          </span>
         )}
         <div className="absolute right-2 top-2 flex items-center gap-1">
           {onToggleFavorite && (
@@ -195,9 +200,9 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-5">
+      <div className="flex flex-1 flex-col gap-2.5 p-4">
         <div>
-          <h3 className="text-lg font-semibold leading-tight tracking-tight text-foreground line-clamp-2">
+          <h3 className="truncate text-base font-semibold leading-tight tracking-tight text-foreground">
             {course.name}
           </h3>
           {course.description && (
@@ -233,9 +238,9 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="pt-2">
+          <div className="pt-1.5">
             <div className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold uppercase tracking-wider transition-colors",
+              "flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
               progress === 100
                 ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400"
                 : progress > 0
