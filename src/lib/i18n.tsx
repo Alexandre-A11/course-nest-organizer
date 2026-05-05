@@ -783,6 +783,12 @@ const EN: Dict = {
   "sidebar.streakTitle": "{n}-day streak",
   "sidebar.streakSubtitle": "Keep studying daily to maintain your streak.",
   "resume.cta": "Resume",
+  "sidebar.tabNotes": "Notes",
+  "sidebar.tabCodes": "Codes",
+  "sidebar.recentCodes": "Recent Codes",
+  "sidebar.noCodes": "Your snapshots will appear here.",
+  "field.author": "Author / School",
+  "field.authorPh": "e.g.: Rocketseat, Alura, John Doe…",
 };
 
 const DICTS: Record<Lang, Dict> = { pt: PT, en: EN };
