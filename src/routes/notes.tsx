@@ -36,7 +36,7 @@ export const Route = createFileRoute("/notes")({
   }),
 });
 
-type Tab = "all" | "notes" | "snapshots";
+type Tab = "notes" | "snapshots";
 
 interface NoteRow {
   fileId: string;
@@ -48,6 +48,7 @@ interface NoteRow {
   courseCategory?: string;
   html: string;
   text: string;       // plain-text projection used for searching
+  tags: string[];     // file tags, lower-cased — also searched
   updatedAt: number;
 }
 
@@ -82,7 +83,7 @@ function NotesPage() {
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [snaps, setSnaps] = useState<SnapRow[]>([]);
 
-  const [tab, setTab] = useState<Tab>("all");
+  const [tab, setTab] = useState<Tab>("notes");
   const [query, setQuery] = useState("");
   const [courseId, setCourseId] = useState<string>("__all");
   const [language, setLanguage] = useState<string>("__all");
@@ -159,6 +160,7 @@ function NotesPage() {
             courseCategory: c?.category,
             html: f.comment as string,
             text: htmlToPlain(f.comment as string),
+            tags: (f.tags ?? []).map((t) => t.toLowerCase()),
             updatedAt: f.updatedAt ?? 0,
           };
         })
@@ -193,7 +195,8 @@ function NotesPage() {
       return (
         n.text.toLowerCase().includes(q) ||
         n.fileName.toLowerCase().includes(q) ||
-        n.courseName.toLowerCase().includes(q)
+        n.courseName.toLowerCase().includes(q) ||
+        n.tags.some((t) => t.includes(q))
       );
     });
   }, [notes, query, courseId]);
@@ -229,8 +232,8 @@ function NotesPage() {
     [filteredSnaps, safeSnapsPage],
   );
 
-  const showNotes = tab === "all" || tab === "notes";
-  const showSnaps = tab === "all" || tab === "snapshots";
+  const showNotes = tab === "notes";
+  const showSnaps = tab === "snapshots";
 
   const courseOptions = useMemo(
     () => Array.from(courses.values()).sort((a, b) => a.name.localeCompare(b.name)),
@@ -291,7 +294,7 @@ function NotesPage() {
               ))}
             </SelectContent>
           </Select>
-          {(tab === "all" || tab === "snapshots") && (
+          {tab === "snapshots" && (
             <Select value={language} onValueChange={setLanguage}>
               <SelectTrigger className="h-9 w-[160px] rounded-xl text-sm">
                 <SelectValue />
@@ -310,16 +313,13 @@ function NotesPage() {
             onValueChange={(v) => v && setTab(v as Tab)}
             className="gap-1"
           >
-            <ToggleGroupItem value="all" size="sm" className="h-8 rounded-lg px-3 text-xs">
-              {t("notesPage.tabAll")}
-            </ToggleGroupItem>
             <ToggleGroupItem value="notes" size="sm" className="h-8 gap-1 rounded-lg px-3 text-xs">
               <NotebookPen className="h-3.5 w-3.5" />
-              {t("notesPage.tabNotes")} ({notes.length})
+              {t("notesPage.tabNotes")} ({filteredNotes.length})
             </ToggleGroupItem>
             <ToggleGroupItem value="snapshots" size="sm" className="h-8 gap-1 rounded-lg px-3 text-xs">
               <Code2 className="h-3.5 w-3.5" />
-              {t("notesPage.tabSnaps")} ({snaps.length})
+              {t("notesPage.tabSnaps")} ({filteredSnaps.length})
             </ToggleGroupItem>
           </ToggleGroup>
         </div>
