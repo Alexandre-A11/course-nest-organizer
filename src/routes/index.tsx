@@ -365,18 +365,7 @@ function Home() {
             )}
 
             {visibleCategories.length > 0 && (
-              <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-1">
-                <button
-                  onClick={() => setCategoryFilter(null)}
-                  className={cn(
-                    "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all",
-                    !categoryFilter
-                      ? "bg-card text-foreground shadow-sm"
-                      : "bg-secondary/60 text-muted-foreground hover:bg-secondary",
-                  )}
-                >
-                  {t("home.all")}
-                </button>
+              <div className="mb-6 flex items-center gap-1.5 overflow-x-auto pb-1">
                 {visibleCategories.map((cat) => {
                   const Icon = cat.icon;
                   const active = categoryFilter === cat.id;
@@ -386,13 +375,13 @@ function Home() {
                       onClick={() => setCategoryFilter(active ? null : cat.id)}
                       title={cat.name}
                       className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all",
+                        "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all",
                         active
                           ? "bg-card text-foreground shadow-sm"
                           : "bg-secondary/60 text-muted-foreground hover:bg-secondary",
                       )}
                     >
-                      <Icon className={cn("h-3.5 w-3.5", cat.color)} />
+                      <Icon className={cn("h-3 w-3", cat.color)} />
                       <span className="hidden sm:inline">{cat.name}</span>
                     </button>
                   );
@@ -400,10 +389,10 @@ function Home() {
                 {categoryFilter && (
                   <button
                     onClick={() => setCategoryFilter(null)}
-                    className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-xs text-muted-foreground hover:bg-secondary"
+                    className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:bg-secondary"
                     title={t("home.clearFilter")}
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
