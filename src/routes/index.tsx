@@ -527,7 +527,7 @@ function Feature({ icon: Icon, title, desc }: { icon: typeof Sparkles; title: st
 function AddCourseTile({ onAdded }: { onAdded: () => void }) {
   const { t } = useI18n();
   return (
-    <div className="col-span-1 flex min-h-[200px] items-center justify-center rounded-2xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center transition-colors hover:border-primary/40 hover:bg-card/60 sm:col-span-2 xl:col-span-3">
+    <div className="col-span-1 flex min-h-[200px] items-center justify-center rounded-2xl border-2 border-dashed border-border/60 bg-card/30 p-6 text-center transition-colors hover:border-primary/40 hover:bg-card/60 sm:col-span-2 xl:col-span-2">
       <div className="flex flex-col items-center gap-3">
         <AddCourseDialog
           onAdded={onAdded}
