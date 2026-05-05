@@ -48,6 +48,8 @@ export interface Course {
   id: string;
   name: string;
   description?: string;
+  /** Optional author / school / publisher displayed discreetly on the card. */
+  author?: string;
   createdAt: number;
   /**
    * Course Vault is now a fully remote app — every course streams from a
