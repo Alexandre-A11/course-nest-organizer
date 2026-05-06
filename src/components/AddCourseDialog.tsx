@@ -181,7 +181,7 @@ export function AddCourseDialog({ onAdded, trigger }: Props) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[560px] rounded-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl rounded-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">{t("add.title")}</DialogTitle>
           <DialogDescription>{t("add.subtitle")}</DialogDescription>
