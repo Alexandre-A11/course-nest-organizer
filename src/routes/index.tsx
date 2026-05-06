@@ -216,21 +216,17 @@ function Home() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0">
             <div className="mb-6 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground">
-                {t("home.countOf", { shown: filteredCourses.length, total: courses.length, plural: plural(courses.length, lang) })}
-                {categoryFilter && getCategory(categoryFilter) ? ` · ${getCategory(categoryFilter)!.name}` : ""}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
+              <div className="relative w-full max-w-lg flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t("home.searchPh")}
-                    className="h-9 w-56 rounded-full border border-border/50 bg-card/70 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground/70 shadow-sm backdrop-blur focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="h-10 w-full rounded-full border border-border/50 bg-card/70 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground/70 shadow-sm backdrop-blur focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 gap-1.5 rounded-md" title={t("home.sortLabel")}>
