@@ -231,17 +231,17 @@ export function HomeSidebar({ courses, filesByCourse }: Props) {
 
       {/* Ofensiva (streak) */}
       <section
-        className="relative overflow-hidden rounded-3xl border border-rose-200/60 p-6 shadow-sm dark:border-rose-900/40 bg-gradient-to-br from-rose-100/80 via-orange-100/70 to-amber-100/70 dark:from-rose-950/40 dark:via-orange-950/30 dark:to-amber-950/30"
+        className="relative overflow-hidden rounded-3xl border border-orange-200/60 bg-gradient-to-br from-orange-100/80 via-rose-100/70 to-amber-100/70 p-6 shadow-sm dark:border-orange-900/30 dark:from-orange-950/40 dark:via-rose-950/30 dark:to-amber-950/20"
       >
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-rose-500 shadow-sm dark:bg-rose-950/60 dark:text-rose-300">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-rose-500 shadow-sm dark:bg-rose-950/50 dark:text-rose-300">
             <Flame className="h-5 w-5 fill-current" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold tracking-tight text-rose-950 dark:text-rose-100">
+            <h3 className="text-base font-semibold tracking-tight text-rose-950 dark:text-rose-50">
               {t("sidebar.streakTitle", { n: streak })}
             </h3>
-            <p className="mt-1 text-xs leading-relaxed text-rose-950/70 dark:text-rose-100/70">
+            <p className="mt-1 text-xs leading-relaxed text-rose-950/70 dark:text-rose-100/60">
               {t("sidebar.streakSubtitle")}
             </p>
           </div>
