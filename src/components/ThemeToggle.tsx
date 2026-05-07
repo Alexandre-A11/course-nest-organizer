@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 export function ThemeToggle() {
   const { theme, setTheme, themes } = useTheme();
   const current = themes.find((t) => t.id === theme);
-  useI18n();
+  const { t } = useI18n();
   const [autoLight, setAutoLight] = useState<ConcreteThemeId>("cloud");
   const [autoDark, setAutoDark]   = useState<ConcreteThemeId>("dark");
 
