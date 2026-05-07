@@ -360,7 +360,7 @@ function TreeNode({
           )}
         </div>
         {open && (
-          <div>
+          <div className="ml-2 border-l border-border/40 pl-2">
             {Array.from(node.children.values()).map((child) => (
               <TreeNode
                 key={child.path}
