@@ -22,6 +22,8 @@ import { CustomVideoPlayer } from "@/components/CustomVideoPlayer";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
 import { useI18n } from "@/lib/i18n";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
   course: Course;
@@ -698,7 +700,8 @@ function ViewerContent({
   // Inline preview for text-like and HTML files
   const ext = file.name.toLowerCase().split(".").pop() ?? "";
   const HTML_EXTS = ["html", "htm"];
-  const TEXT_EXTS = ["txt", "md", "markdown", "json", "csv", "tsv", "log", "xml", "yml", "yaml", "rtf"];
+  const MARKDOWN_EXTS = ["md", "markdown"];
+  const TEXT_EXTS = ["txt", "json", "csv", "tsv", "log", "xml", "yml", "yaml", "rtf"];
 
   if (HTML_EXTS.includes(ext)) {
     return (
@@ -709,6 +712,10 @@ function ViewerContent({
         className="h-full w-full border-0 bg-white"
       />
     );
+  }
+
+  if (MARKDOWN_EXTS.includes(ext)) {
+    return <MarkdownPreview url={url} name={file.name} />;
   }
 
   if (TEXT_EXTS.includes(ext)) {
@@ -768,6 +775,56 @@ function TextPreview({ url, name }: { url: string; name: string }) {
     <pre className="h-full overflow-auto whitespace-pre-wrap break-words bg-card p-4 sm:p-6 font-mono text-[13px] leading-relaxed text-foreground">
       {content || t("viewer.empty", { name })}
     </pre>
+  );
+}
+
+function MarkdownPreview({ url, name }: { url: string; name: string }) {
+  const { t } = useI18n();
+  const [content, setContent] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setErr(null);
+    fetch(url)
+      .then((r) => r.text())
+      .then((text) => {
+        if (!active) return;
+        setContent(text);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setErr((e as Error).message);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (err) {
+    return <div className="p-6 text-sm text-destructive">{err}</div>;
+  }
+
+  return (
+    <div className="h-full overflow-auto bg-card px-4 py-5 sm:px-6">
+      <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:font-display prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:font-mono prose-code:text-foreground prose-pre:rounded-lg prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-table:text-sm prose-th:text-foreground prose-td:text-foreground">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {content || t("viewer.empty", { name })}
+        </ReactMarkdown>
+      </article>
+    </div>
   );
 }
 
