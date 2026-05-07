@@ -1,6 +1,16 @@
 import { motion } from "framer-motion";
 
-const blobs = [
+type BlobConfig = {
+  className: string;
+  animate: {
+    x: number[];
+    y: number[];
+    scale: number[];
+  };
+  duration: number;
+};
+
+const blobs: BlobConfig[] = [
   {
     className:
       "left-[-12%] top-[-8%] h-[34rem] w-[34rem] bg-[oklch(0.9_0.08_255_/_0.42)] dark:bg-[oklch(0.34_0.06_255_/_0.22)]",
@@ -25,7 +35,7 @@ const blobs = [
     animate: { x: [0, -60, 40], y: [0, -70, -10], scale: [1, 1.12, 0.96] },
     duration: 22,
   },
-] as const;
+];
 
 export function AuroraBackground() {
   return (
