@@ -7,20 +7,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Palette, Check, Sun, Moon, Wand2, Clock } from "lucide-react";
 import {
-  pickRandomThemeForTime, applyTheme,
+  applyTheme,
   LIGHT_THEMES, DARK_THEMES,
   getAutoLightPreference, getAutoDarkPreference,
   setAutoLightPreference, setAutoDarkPreference,
   type ConcreteThemeId,
 } from "@/lib/theme";
-import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
   const { theme, setTheme, themes } = useTheme();
   const current = themes.find((t) => t.id === theme);
-  const { t } = useI18n();
+  useI18n();
   const [autoLight, setAutoLight] = useState<ConcreteThemeId>("cloud");
   const [autoDark, setAutoDark]   = useState<ConcreteThemeId>("dark");
 
@@ -80,7 +79,7 @@ export function ThemeToggle() {
                   <AutoSlotSubMenu
                     label={t("theme.autoLight")}
                     icon={<Sun className="h-3.5 w-3.5" />}
-                    pool={LIGHT_THEMES}
+                    pool={LIGHT_THEMES.filter((id) => !HIDDEN_THEME_IDS.has(id))}
                     value={autoLight}
                     onChange={updateAutoLight}
                     themes={themes}
@@ -88,7 +87,7 @@ export function ThemeToggle() {
                   <AutoSlotSubMenu
                     label={t("theme.autoDark")}
                     icon={<Moon className="h-3.5 w-3.5" />}
-                    pool={DARK_THEMES}
+                    pool={DARK_THEMES.filter((id) => !HIDDEN_THEME_IDS.has(id))}
                     value={autoDark}
                     onChange={updateAutoDark}
                     themes={themes}
