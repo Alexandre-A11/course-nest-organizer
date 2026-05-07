@@ -154,7 +154,7 @@ export function CourseCard({ course, files, onDelete, onEdit, onToggleFavorite, 
           <Folder className="absolute right-4 top-4 h-12 w-12 text-white/40" strokeWidth={1.5} />
         )}
         {course.author && (
-          <span className="absolute bottom-2 left-2 max-w-[70%] truncate rounded-md bg-black/40 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/85 backdrop-blur-sm">
+          <span className="absolute bottom-2 left-2 max-w-[70%] truncate rounded-md border border-border/30 bg-card/75 px-1.5 py-0.5 font-mono text-xs italic tracking-wide text-muted-foreground backdrop-blur-sm">
             {course.author}
           </span>
         )}

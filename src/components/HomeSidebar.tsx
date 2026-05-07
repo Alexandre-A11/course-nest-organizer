@@ -231,7 +231,7 @@ export function HomeSidebar({ courses, filesByCourse }: Props) {
 
       {/* Ofensiva (streak) */}
       <section
-        className="relative overflow-hidden rounded-3xl border border-orange-200/60 bg-gradient-to-br from-orange-100/80 via-rose-100/70 to-amber-100/70 p-6 shadow-sm dark:border-orange-900/30 dark:from-orange-950/40 dark:via-rose-950/30 dark:to-amber-950/20"
+        className="relative overflow-hidden rounded-3xl border border-orange-200 bg-gradient-to-br from-orange-100 to-amber-50 p-6 shadow-sm dark:border-orange-800/30 dark:from-orange-950/40 dark:via-orange-950/28 dark:to-amber-900/20"
       >
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/70 text-rose-500 shadow-sm dark:bg-rose-950/50 dark:text-rose-300">

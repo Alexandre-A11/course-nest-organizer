@@ -5,15 +5,14 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger,
   DropdownMenuSubContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
-import { Palette, Check, Sun, Moon, Shuffle, Wand2, Clock } from "lucide-react";
+import { Palette, Check, Sun, Moon, Wand2, Clock } from "lucide-react";
 import {
-  pickRandomThemeForTime, applyTheme,
+  applyTheme,
   LIGHT_THEMES, DARK_THEMES,
   getAutoLightPreference, getAutoDarkPreference,
   setAutoLightPreference, setAutoDarkPreference,
   type ConcreteThemeId,
 } from "@/lib/theme";
-import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useEffect, useState } from "react";
 
@@ -22,7 +21,7 @@ export function ThemeToggle() {
   const current = themes.find((t) => t.id === theme);
   const { t } = useI18n();
   const [autoLight, setAutoLight] = useState<ConcreteThemeId>("cloud");
-  const [autoDark, setAutoDark]   = useState<ConcreteThemeId>("tokyo-night");
+  const [autoDark, setAutoDark]   = useState<ConcreteThemeId>("dark");
 
   useEffect(() => {
     setAutoLight(getAutoLightPreference());
@@ -40,15 +39,9 @@ export function ThemeToggle() {
     if (theme === "auto") applyTheme("auto");
   };
 
-  const handleRandom = () => {
-    const next = pickRandomThemeForTime(theme);
-    setTheme(next);
-    const picked = themes.find((th) => th.id === next);
-    if (picked) toast.success(`${t("theme.randomPicked")}: ${picked.name}`);
-  };
-
   const specials = themes.filter((th) => th.isSpecial);
-  const presets = themes.filter((th) => !th.isSpecial);
+  const visiblePresets = themes.filter((th) => !th.isSpecial && !HIDDEN_THEME_IDS.has(th.id));
+  const visibleSpecials = specials.filter((th) => th.id !== "smart-random");
 
   return (
     <DropdownMenu>
@@ -63,20 +56,7 @@ export function ThemeToggle() {
           Tema
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleRandom}
-          className="flex items-center gap-3 rounded-lg py-2"
-        >
-          <div className="flex h-8 w-12 items-center justify-center rounded-md bg-gradient-to-br from-primary/20 via-primary/10 to-secondary ring-1 ring-border">
-            <Shuffle className="h-3.5 w-3.5 text-primary" />
-          </div>
-          <div className="flex-1 leading-tight">
-            <div className="text-sm font-medium text-foreground">{t("theme.random")}</div>
-            <div className="text-[11px] text-muted-foreground">{t("theme.randomHint")}</div>
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {specials.map((th) => {
+        {visibleSpecials.map((th) => {
           const active = th.id === theme;
           const Icon = th.id === "auto" ? Clock : Wand2;
           return (
@@ -99,7 +79,7 @@ export function ThemeToggle() {
                   <AutoSlotSubMenu
                     label={t("theme.autoLight")}
                     icon={<Sun className="h-3.5 w-3.5" />}
-                    pool={LIGHT_THEMES}
+                    pool={LIGHT_THEMES.filter((id) => !HIDDEN_THEME_IDS.has(id))}
                     value={autoLight}
                     onChange={updateAutoLight}
                     themes={themes}
@@ -107,7 +87,7 @@ export function ThemeToggle() {
                   <AutoSlotSubMenu
                     label={t("theme.autoDark")}
                     icon={<Moon className="h-3.5 w-3.5" />}
-                    pool={DARK_THEMES}
+                    pool={DARK_THEMES.filter((id) => !HIDDEN_THEME_IDS.has(id))}
                     value={autoDark}
                     onChange={updateAutoDark}
                     themes={themes}
@@ -118,7 +98,7 @@ export function ThemeToggle() {
           );
         })}
         <DropdownMenuSeparator />
-        {presets.map((th) => {
+        {visiblePresets.map((th) => {
           const active = th.id === theme;
           return (
             <DropdownMenuItem
@@ -143,6 +123,16 @@ export function ThemeToggle() {
     </DropdownMenu>
   );
 }
+
+const HIDDEN_THEME_IDS = new Set([
+  "forest",
+  "sepia",
+  "mocha",
+  "carbon",
+  "nord",
+  "tokyo-night",
+  "cappuccino",
+]);
 
 function AutoSlotSubMenu({
   label, icon, pool, value, onChange, themes,

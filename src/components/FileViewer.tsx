@@ -22,6 +22,8 @@ import { CustomVideoPlayer } from "@/components/CustomVideoPlayer";
 import { exportNotes, type ExportFormat } from "@/lib/exportNotes";
 import { usePref } from "@/lib/prefs";
 import { useI18n } from "@/lib/i18n";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Props {
   course: Course;
@@ -698,7 +700,8 @@ function ViewerContent({
   // Inline preview for text-like and HTML files
   const ext = file.name.toLowerCase().split(".").pop() ?? "";
   const HTML_EXTS = ["html", "htm"];
-  const TEXT_EXTS = ["txt", "md", "markdown", "json", "csv", "tsv", "log", "xml", "yml", "yaml", "rtf"];
+  const MARKDOWN_EXTS = ["md", "markdown"];
+  const TEXT_EXTS = ["txt", "json", "csv", "tsv", "log", "xml", "yml", "yaml", "rtf"];
 
   if (HTML_EXTS.includes(ext)) {
     return (
@@ -709,6 +712,10 @@ function ViewerContent({
         className="h-full w-full border-0 bg-white"
       />
     );
+  }
+
+  if (MARKDOWN_EXTS.includes(ext)) {
+    return <MarkdownPreview url={url} name={file.name} />;
   }
 
   if (TEXT_EXTS.includes(ext)) {
@@ -768,6 +775,82 @@ function TextPreview({ url, name }: { url: string; name: string }) {
     <pre className="h-full overflow-auto whitespace-pre-wrap break-words bg-card p-4 sm:p-6 font-mono text-[13px] leading-relaxed text-foreground">
       {content || t("viewer.empty", { name })}
     </pre>
+  );
+}
+
+function MarkdownPreview({ url, name }: { url: string; name: string }) {
+  const { t } = useI18n();
+  const [content, setContent] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setErr(null);
+    fetch(url)
+      .then((r) => r.text())
+      .then((text) => {
+        if (!active) return;
+        setContent(text);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setErr((e as Error).message);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [url]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (err) {
+    return <div className="p-6 text-sm text-destructive">{err}</div>;
+  }
+
+  return (
+    <div className="h-full overflow-auto bg-card px-4 py-5 sm:px-6">
+      <article className="space-y-4 text-sm leading-7 text-foreground">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children }) => <h1 className="mb-4 text-2xl font-semibold text-foreground">{children}</h1>,
+            h2: ({ children }) => <h2 className="mb-3 mt-8 text-xl font-semibold text-foreground">{children}</h2>,
+            h3: ({ children }) => <h3 className="mb-2 mt-6 text-lg font-semibold text-foreground">{children}</h3>,
+            p: ({ children }) => <p className="text-sm leading-7 text-foreground">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc space-y-1 pl-6 text-sm text-foreground">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal space-y-1 pl-6 text-sm text-foreground">{children}</ol>,
+            li: ({ children }) => <li className="marker:text-muted-foreground">{children}</li>,
+            blockquote: ({ children }) => <blockquote className="border-l-2 border-border/70 pl-4 italic text-muted-foreground">{children}</blockquote>,
+            code: ({ className, children, ...props }) => {
+              const isBlock = Boolean(className);
+              if (isBlock) {
+                return <code className="font-mono text-[12px] text-foreground" {...props}>{children}</code>;
+              }
+              return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] text-foreground" {...props}>{children}</code>;
+            },
+            pre: ({ children }) => <pre className="overflow-x-auto rounded-lg border border-border bg-muted p-4">{children}</pre>,
+            table: ({ children }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-sm">{children}</table></div>,
+            thead: ({ children }) => <thead className="border-b border-border bg-muted/40">{children}</thead>,
+            th: ({ children }) => <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>,
+            td: ({ children }) => <td className="border-b border-border/50 px-3 py-2 align-top text-foreground">{children}</td>,
+            a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-4">{children}</a>,
+            hr: () => <hr className="border-border" />,
+          }}
+        >
+          {content || t("viewer.empty", { name })}
+        </ReactMarkdown>
+      </article>
+    </div>
   );
 }
 
