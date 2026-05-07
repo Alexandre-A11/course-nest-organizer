@@ -819,8 +819,34 @@ function MarkdownPreview({ url, name }: { url: string; name: string }) {
 
   return (
     <div className="h-full overflow-auto bg-card px-4 py-5 sm:px-6">
-      <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:font-display prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:font-mono prose-code:text-foreground prose-pre:rounded-lg prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-table:text-sm prose-th:text-foreground prose-td:text-foreground">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+      <article className="space-y-4 text-sm leading-7 text-foreground">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children }) => <h1 className="mb-4 text-2xl font-semibold text-foreground">{children}</h1>,
+            h2: ({ children }) => <h2 className="mb-3 mt-8 text-xl font-semibold text-foreground">{children}</h2>,
+            h3: ({ children }) => <h3 className="mb-2 mt-6 text-lg font-semibold text-foreground">{children}</h3>,
+            p: ({ children }) => <p className="text-sm leading-7 text-foreground">{children}</p>,
+            ul: ({ children }) => <ul className="list-disc space-y-1 pl-6 text-sm text-foreground">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal space-y-1 pl-6 text-sm text-foreground">{children}</ol>,
+            li: ({ children }) => <li className="marker:text-muted-foreground">{children}</li>,
+            blockquote: ({ children }) => <blockquote className="border-l-2 border-border/70 pl-4 italic text-muted-foreground">{children}</blockquote>,
+            code: ({ className, children, ...props }) => {
+              const isBlock = Boolean(className);
+              if (isBlock) {
+                return <code className="font-mono text-[12px] text-foreground" {...props}>{children}</code>;
+              }
+              return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] text-foreground" {...props}>{children}</code>;
+            },
+            pre: ({ children }) => <pre className="overflow-x-auto rounded-lg border border-border bg-muted p-4">{children}</pre>,
+            table: ({ children }) => <div className="overflow-x-auto"><table className="w-full border-collapse text-sm">{children}</table></div>,
+            thead: ({ children }) => <thead className="border-b border-border bg-muted/40">{children}</thead>,
+            th: ({ children }) => <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>,
+            td: ({ children }) => <td className="border-b border-border/50 px-3 py-2 align-top text-foreground">{children}</td>,
+            a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-4">{children}</a>,
+            hr: () => <hr className="border-border" />,
+          }}
+        >
           {content || t("viewer.empty", { name })}
         </ReactMarkdown>
       </article>
